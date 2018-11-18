@@ -227,6 +227,7 @@ vx_status vxNonMaxSuppression(vx_image i_mag, vx_image i_ang, vx_image i_edge, v
         vxAlterRectangle(&rect, 1, 1, -1, -1);
     }
 
+    void* wf = vxDDUMPOpen("suppress_vx.bin");
     for (y = low_y; y < high_y; y++)
     {
         for (x = low_x; x < high_x; x++)
@@ -256,10 +257,12 @@ vx_status vxNonMaxSuppression(vx_image i_mag, vx_image i_ang, vx_image i_edge, v
                 const int *ni = neighbor_indexes[(angle + 16) / 32];
                 vxReadRectangle(mag_base, &mag_addr, borders, format, x, y, 1, 1, mag);
                 *edge = mag[4] > mag[ni[0]] && mag[4] > mag[ni[1]] ? mag[4] : 0;
+		vxDDUMPWrite(edge, sizeof(vx_uint16), wf);
             }
         }
     }
 
+    vxDDUMPClose(wf);
     status |= vxCommitImagePatch(i_mag, NULL, 0, &mag_addr, mag_base);
     status |= vxCommitImagePatch(i_ang, NULL, 0, &ang_addr, ang_base);
     status |= vxCommitImagePatch(i_edge, &rect, 0, &edge_addr, edge_base);

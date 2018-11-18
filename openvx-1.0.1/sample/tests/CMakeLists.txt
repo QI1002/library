@@ -67,6 +67,15 @@ install ( TARGETS ${TARGET_NAME4}
           LIBRARY DESTINATION bin )
 set_target_properties( ${TARGET_NAME4} PROPERTIES FOLDER ${SAMPLE_FOLDER} )
 		  
+set( TARGET_NAME_ vx_mytest )
+add_executable ( ${TARGET_NAME_} vx_mytest.c)
+target_link_libraries( ${TARGET_NAME_} openvx-debug-lib openvx-extras-lib openvx-helper openvx vxu )
+install ( TARGETS ${TARGET_NAME_} 
+          RUNTIME DESTINATION bin
+          ARCHIVE DESTINATION lib
+          LIBRARY DESTINATION bin )
+set_target_properties( ${TARGET_NAME_} PROPERTIES FOLDER ${SAMPLE_FOLDER} )
+
 if ((UNIX) AND (OPENVX_USE_SDL))
     
 	set( TARGET_NAME_CAM_TEST vx_cam_test )

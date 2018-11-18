@@ -71,6 +71,19 @@ TESTOPTS    :=
 TESTPATH    := raw
 include $(FINALE)
 
+_MODULE     := vx_mytest
+include $(PRELUDE)
+TARGET      := vx_mytest
+TARGETTYPE  := exe
+CSOURCES    := $(TARGET).c
+SHARED_LIBS := openvx vxu
+STATIC_LIBS := openvx-debug-lib openvx-extras-lib openvx-helper
+IDIRS       += $(HOST_ROOT)/examples $(HOST_ROOT)/$(OPENVX_SRC)/include
+TESTPRGM    := $(TARGET)
+TESTOPTS    := 
+TESTPATH    := raw
+include $(FINALE)
+
 ifeq ($(TARGET_OS),LINUX)
 _MODULE     := vx_cam_test
 include $(PRELUDE)

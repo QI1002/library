@@ -225,6 +225,8 @@ static vx_status VX_CALLBACK vxSobelMxNKernel(vx_node node, const vx_reference *
             vxAlterRectangle(&rect, b, b, -b, -b);
         }
 
+	void* wfx = vxDDUMPOpen("gx_vx.bin");
+	void* wfy = vxDDUMPOpen("gy_vx.bin");
         for (y = low_y; y < high_y; y++)
         {
             for (x = low_x; x < high_x; x++)
@@ -245,13 +247,17 @@ static vx_status VX_CALLBACK vxSobelMxNKernel(vx_node node, const vx_reference *
                 if (grad_x) {
                     vx_int16 *out_x = vxFormatImagePatchAddress2d(dst_base_x, x, y, &dst_addr_x);
                     *out_x = sum_x;
+		    vxDDUMPWrite(out_x, sizeof(vx_int16), wfx);
                 }
                 if (grad_y) {
                     vx_int16 *out_y = vxFormatImagePatchAddress2d(dst_base_y, x, y, &dst_addr_y);
                     *out_y = sum_y;
+		    vxDDUMPWrite(out_y, sizeof(vx_int16), wfy);
                 }
             }
         }
+
+	vxDDUMPClose(wfx); vxDDUMPClose(wfy);
         status = vxCommitImagePatch(input, NULL, 0, &src_addr, src_base);
         if (grad_x)
             status |= vxCommitImagePatch(grad_x, &rect, 0, &dst_addr_x, dst_base_x);

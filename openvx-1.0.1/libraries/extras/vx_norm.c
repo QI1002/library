@@ -50,6 +50,7 @@ static vx_status vxNorm(vx_image input_x, vx_image input_y, vx_scalar norm_type,
     status |= vxAccessImagePatch(input_x, &rect, 0, &src_addr_x, (void **)&src_base_x, VX_READ_ONLY);
     status |= vxAccessImagePatch(input_y, &rect, 0, &src_addr_y, (void **)&src_base_y, VX_READ_ONLY);
     status |= vxAccessImagePatch(output, &rect, 0, &dst_addr, (void **)&dst_base, VX_WRITE_ONLY);
+    void* wf = vxDDUMPOpen("norm.vx.bin");
     for (y = 0; y < src_addr_x.dim_y; y++)
     {
         for (x = 0; x < src_addr_x.dim_x; x++)
@@ -74,8 +75,10 @@ static vx_status vxNorm(vx_image input_x, vx_image input_y, vx_scalar norm_type,
             }
 
             *dst = (vx_uint16)(value > UINT16_MAX ? UINT16_MAX : value);
+	    vxDDUMPWrite(dst, sizeof(vx_uint16), wf);
         }
     }
+    vxDDUMPClose(wf);
     status |= vxCommitImagePatch(input_x, 0, 0, &src_addr_x, src_base_x);
     status |= vxCommitImagePatch(input_y, 0, 0, &src_addr_y, src_base_y);
     status |= vxCommitImagePatch(output, &rect, 0, &dst_addr, dst_base);

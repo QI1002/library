@@ -142,6 +142,10 @@ VX_API_ENTRY vx_status VX_API_CALL vxDirective(vx_reference reference, vx_enum d
  * \ingroup group_basic_features
  */
 VX_API_ENTRY vx_status VX_API_CALL vxGetStatus(vx_reference reference);
+VX_API_ENTRY void VX_API_CALL vxDDUMPSet(const int flag);
+VX_API_ENTRY void* VX_API_CALL vxDDUMPOpen(const char* filename);
+VX_API_ENTRY size_t VX_API_CALL vxDDUMPWrite(const void* ptr, size_t sz, void* wf);
+VX_API_ENTRY void VX_API_CALL vxDDUMPClose(void* wf);
 
 /*!
  * \brief Registers user-defined structures to the context.

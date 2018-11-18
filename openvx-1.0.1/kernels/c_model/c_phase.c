@@ -41,6 +41,7 @@ vx_status vxPhase(vx_image grad_x, vx_image grad_y, vx_image output)
     status |= vxAccessImagePatch(grad_x, &rect, 0, &src_addr_x, (void **)&src_base_x, VX_READ_ONLY);
     status |= vxAccessImagePatch(grad_y, &rect, 0, &src_addr_y, (void **)&src_base_y, VX_READ_ONLY);
     status |= vxAccessImagePatch(output, &rect, 0, &dst_addr, (void **)&dst_base, VX_WRITE_ONLY);
+    void* wf = vxDDUMPOpen("phase_vx.bin");
     for (y = 0; y < dst_addr.dim_y; y++)
     {
         for (x = 0; x < dst_addr.dim_x; x++)
@@ -60,12 +61,15 @@ vx_status vxPhase(vx_image grad_x, vx_image grad_y, vx_image output)
             norm = norm / VX_TAU;
             /* 0 - 255 */
             *dst = (vx_uint8)((vx_uint32)(norm * 256u + 0.5) & 0xFFu);
-            if (in_y[0] != 0 || in_x[0] != 0)
+            vxDDUMPWrite(dst, sizeof(vx_uint8), wf);
+	    if (in_y[0] != 0 || in_x[0] != 0)
             {
                 VX_PRINT(VX_ZONE_INFO, "atan2(%d,%d) = %lf [norm=%lf] dst=%02x\n", in_y[0], in_x[0], arct, norm, *dst);
             }
         }
     }
+
+    vxDDUMPClose(wf);
     status |= vxCommitImagePatch(grad_x, NULL, 0, &src_addr_x, src_base_x);
     status |= vxCommitImagePatch(grad_y, NULL, 0, &src_addr_y, src_base_y);
     status |= vxCommitImagePatch(output, &rect, 0, &dst_addr, dst_base);

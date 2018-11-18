@@ -102,3 +102,30 @@ VX_API_ENTRY vx_status VX_API_CALL vxGetStatus(vx_reference reference)
     }
     return VX_FAILURE;
 }
+
+// DDUMP : dump debug behavior 
+static int isDDUMP = 0;
+
+VX_API_ENTRY void VX_API_CALL vxDDUMPSet(const int flag)
+{
+    isDDUMP = flag;	
+}
+
+VX_API_ENTRY void* VX_API_CALL vxDDUMPOpen(const char* filename)
+{
+    if (!isDDUMP) return NULL;	
+    return (void*)fopen(filename, "wb");
+}
+
+VX_API_ENTRY size_t VX_API_CALL vxDDUMPWrite(const void* ptr, size_t sz, void* wf)
+{
+    if (!isDDUMP) return 0;	
+    return fwrite(ptr, 1, sz, (FILE*)wf);
+}
+
+VX_API_ENTRY void VX_API_CALL vxDDUMPClose(void* wf)
+{
+    if (!isDDUMP) return;	
+    fclose((FILE*)wf);
+}
+
