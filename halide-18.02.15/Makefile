@@ -1499,7 +1499,7 @@ $(TMP_DIR)/images/%.png: $(ROOT_DIR)/tutorial/images/%.png
 	@-mkdir -p $(TMP_DIR)/images
 	cp $< $(TMP_DIR)/images/
 
-tutorial_%: $(BIN_DIR)/tutorial_% $(TMP_DIR)/images/rgb.png $(TMP_DIR)/images/gray.png
+tutorial_%: $(BIN_DIR)/tutorial_% $(TMP_DIR)/images/rgb.png $(TMP_DIR)/images/gray.png $(TMP_DIR)/images/bike.png
 	@-mkdir -p $(TMP_DIR)
 	cd $(TMP_DIR) ; $(CURDIR)/$<
 	@-echo
