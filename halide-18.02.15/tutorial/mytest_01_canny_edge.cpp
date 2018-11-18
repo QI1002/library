@@ -20,47 +20,32 @@ using namespace Halide::Tools;
 
 //A definition for TAU, or 2*PI.
 #define TAU 6.28318530717958647692f
-#define BORDER_MODE_REPEAT //  default: skip border 
+//#define BORDER_MODE_REPEAT //  default: skip border 
 //#define TARGET_OPENCL // default: CPU
 //#define TARGET_CUDA // default: CPU 
 //#define NORMAL_L2 // default: L2
-
-/*   0 1 2 
- *   3 4 5 
- *   6 7 8 
- */
-static const int neighbor[][4] = {
-    {-1, 0, 1, 0}, //{3, 5},
-    {-1, 1, 1,-1}, //{6, 2},
-    { 0, 1, 0,-1}, //{7, 1},
-    { 1, 1,-1,-1}, //{8, 0},
-    { 1, 0,-1, 0}, //{5, 3},
-    { 1,-1,-1, 1}, //{2, 6},
-    { 0,-1, 0, 1}, //{1, 7},
-    {-1,-1, 1, 1}, //{0, 8},
-    {-1, 0, 1, 0}, //{3, 5},
-};
 
 bool have_opencl_or_metal();
 int main(int argc, char **argv) {
     //01. open file and how it's property and define common variables
     Buffer<uint8_t> input = load_image("images/bike.png");
     printf("input image = %d %d %d\n", input.width(), input.height(), input.channels());
-    Var x, y, xg, yg;
+    Var x, y;
 
     //02. define clamp function for border mode = repeat
     Func clamped;
+    int xm, ym, w, h;
+
 #ifdef BORDER_MODE_REPEAT
     Expr clamped_x = clamp(x, 0, input.width()-1);
     Expr clamped_y = clamp(y, 0, input.height()-1);
     clamped(x, y) = input(clamped_x, clamped_y);    
-    int w = input.width(); int h = input.height();
-    Buffer<uint8_t> output(w, h); 
+    xm = ym = 0;
+    w = input.width(); h = input.height();
 #else
     clamped(x, y) = input(x, y);
-    int w = input.width()-2; int h = input.height()-2;
-    Buffer<uint8_t> output(w, h); 
-    output.set_min(1, 1);
+    xm = ym = 2;
+    w = input.width()-4; h = input.height()-4;    
 #endif
 
     //03. define cast uint16 filter to avoid overflow or underflow
@@ -69,8 +54,8 @@ int main(int argc, char **argv) {
 
     //04. define gradient x,y filter 
     Func gx, gy;
-    gx(x, y) = (input16(x+1, y-1) + 2*input16(x+1, y) + input16(x+1, y+1) - 
-		input16(x-1, y-1) - 2*input16(x-1, y) - input16(x-1, y+1));
+    gx(x, y) = (input16(x-1, y-1) + 2*input16(x-1, y) + input16(x-1, y+1) - 
+		input16(x+1, y-1) - 2*input16(x+1, y) - input16(x+1, y+1));
     gy(x, y) = (input16(x-1, y+1) + 2*input16(x, y+1) + input16(x+1, y+1) - 
 		input16(x-1, y-1) - 2*input16(x, y-1) - input16(x+1, y-1));
 
@@ -84,7 +69,7 @@ int main(int argc, char **argv) {
 
     //06. define phase filter 
     Func phase;
-    Expr angle = atan2(cast<float>(gx(x, y)), cast<float>(gy(x, y)));    
+    Expr angle = atan2(cast<float>(gy(x, y)), cast<float>(gx(x, y)));    
     angle = select(angle < 0.0f, angle + TAU, angle)/TAU;
     angle = cast<uint8_t>(cast<uint32_t>(angle*256 + 0.5f) & 0xFF);
     phase(x, y) = angle;    
@@ -92,25 +77,26 @@ int main(int argc, char **argv) {
     //07. define the clamped normal  
     Func normc;
 #ifdef BORDER_MODE_REPEAT
-    normc(x, y) = cast<uint8_t>(norm(clamped_x, clamped_y));    
+    normc(x, y) = cast<uint16_t>(norm(clamped_x, clamped_y));    
 #else
-    normc(x, y) = cast<uint8_t>(norm(x, y));    
+    normc(x, y) = cast<uint16_t>(norm(x, y));    
 #endif
 
-    //08. non-max surpression and use table lookup
-    Buffer<int8_t> nb(9, 4);
-    for(int i = 0; i < 9; i++) {
-        for(int j = 0; j < 4; j++) {
-	    nb(i, j) = neighbor[i][j];
-	}
-    }
-
-    Func surpress;
-    Expr ix = (phase(x, y) + 16)/32;
-    surpress(x, y) = select(normc(x, y) > normc(x+1, y+1) && 
-                            normc(x, y) > normc(x-1, y-1), normc(x, y), 0);
-    //surpress(x, y) = select(normc(x, y) > normc(x+nb(ix, 0), y+nb(ix, 1)) && 
-    //                        normc(x, y) > normc(x+nb(ix, 2), y+nb(ix, 3)), normc(x, y), 0);
+    //08. non-max surpression and use mutliple switch
+    Func suppress;
+    Expr ix = (((cast<uint16_t>(phase(x, y)) + 16)/32) & 0x3)+5;
+    suppress(x,y) = select(ix == 5, 
+                           select(normc(x, y) > normc(x+1, y) && 
+                                  normc(x, y) > normc(x-1, y), normc(x, y), 0), 
+                    select(ix == 6, 
+                           select(normc(x, y) > normc(x+1, y-1) && 
+                                  normc(x, y) > normc(x-1, y+1), normc(x, y), 0),
+                    select(ix == 7, 
+                           select(normc(x, y) > normc(x, y-1) && 
+                                  normc(x, y) > normc(x, y+1), normc(x, y), 0),
+                    select(ix == 8, 
+                           select(normc(x, y) > normc(x+1, y+1) && 
+                                  normc(x, y) > normc(x-1, y-1), normc(x, y), 0), 0))));
 
     //09. possible to change to other target 
     Target target = get_host_target();
@@ -123,15 +109,33 @@ int main(int argc, char **argv) {
 #endif	
     }
     // not let the jit compile impact performance measure
-    surpress.compile_jit(target);
+    suppress.compile_jit(target);
     
     //10. realize
+    Buffer<uint16_t> output(w, h); 
+    output.set_min(xm, ym);
     //phase.realize(output); // ok 
-    //normc.realize(output); // ok 
-    surpress.realize(output); // fail if BORDER_MODE_REPEAT off
+    //norm.realize(output); // ok 
+    suppress.realize(output); // fail if BORDER_MODE_REPEAT off
+
+#if 1
+    FILE* wf = fopen("images/suppress.bin", "wb");
+    for(int i = 0; i < output.height(); i++) {
+        for(int j = 0; j < output.width(); j++) {
+            uint16_t v = output(j+xm, i+ym);
+            fwrite(&v, sizeof(uint16_t), 1, wf);
+        }
+    }
+    fclose(wf);
+#endif
 
     //11. save the image
-    save_image(output, "images/bike1.png");
+    Buffer<uint8_t> picture(w, h); 
+    picture.set_min(xm, ym);
+    Func result;
+    result(x, y) = cast<uint8_t>(suppress(x, y));
+    result.realize(picture);
+    save_image(picture, "images/bike1.png");
     printf("Success!\n");
     
     return 0;
