@@ -34,18 +34,20 @@ int main(int argc, char **argv) {
 
     //02. define clamp function for border mode = repeat
     Func clamped;
-    int xm, ym, w, h;
+    int xm1, ym1, xm2, ym2, w1, h1, w2, h2;
 
 #ifdef BORDER_MODE_REPEAT
     Expr clamped_x = clamp(x, 0, input.width()-1);
     Expr clamped_y = clamp(y, 0, input.height()-1);
     clamped(x, y) = input(clamped_x, clamped_y);    
-    xm = ym = 0;
-    w = input.width(); h = input.height();
+    xm1 = ym1 = xm2 = ym2 = 0;
+    w1 = input.width(); h1 = input.height();
+    w2 = input.width(); h2 = input.height();
 #else
     clamped(x, y) = input(x, y);
-    xm = ym = 2;
-    w = input.width()-4; h = input.height()-4;    
+    xm1 = ym1 = 1; xm2 = ym2 = 2;
+    w1 = input.width()-2; h1 = input.height()-2;    
+    w2 = input.width()-4; h2 = input.height()-4;    
 #endif
 
     //03. define cast uint16 filter to avoid overflow or underflow
@@ -112,26 +114,69 @@ int main(int argc, char **argv) {
     suppress.compile_jit(target);
     
     //10. realize
-    Buffer<uint16_t> output(w, h); 
-    output.set_min(xm, ym);
-    //phase.realize(output); // ok 
-    //norm.realize(output); // ok 
-    suppress.realize(output); // fail if BORDER_MODE_REPEAT off
-
-#if 1
-    FILE* wf = fopen("images/suppress.bin", "wb");
-    for(int i = 0; i < output.height(); i++) {
-        for(int j = 0; j < output.width(); j++) {
-            uint16_t v = output(j+xm, i+ym);
-            fwrite(&v, sizeof(uint16_t), 1, wf);
+    Buffer<int16_t> outputx(w1, h1); 
+    outputx.set_min(xm1, ym1);
+    gx.realize(outputx);
+    FILE* wfx = fopen("images/gx.bin", "wb");
+    for(int i = 0; i < outputx.height(); i++) {
+        for(int j = 0; j < outputx.width(); j++) {
+            int16_t v = outputx(j+xm1, i+ym1);
+            fwrite(&v, sizeof(int16_t), 1, wfx);
         }
     }
-    fclose(wf);
-#endif
+    fclose(wfx);
+
+    Buffer<int16_t> outputy(w1, h1); 
+    outputy.set_min(xm1, ym1);
+    gy.realize(outputy);
+    FILE* wfy = fopen("images/gy.bin", "wb");
+    for(int i = 0; i < outputy.height(); i++) {
+        for(int j = 0; j < outputy.width(); j++) {
+            int16_t v = outputy(j+xm1, i+ym1);
+            fwrite(&v, sizeof(int16_t), 1, wfy);
+        }
+    }
+    fclose(wfy);
+    
+    Buffer<uint16_t> outputn(w1, h1); 
+    outputn.set_min(xm1, ym1);
+    norm.realize(outputn);
+    FILE* wfn = fopen("images/norm.bin", "wb");
+    for(int i = 0; i < outputn.height(); i++) {
+        for(int j = 0; j < outputn.width(); j++) {
+            uint16_t v = outputn(j+xm1, i+ym1);
+            fwrite(&v, sizeof(uint16_t), 1, wfn);
+        }
+    }
+    fclose(wfn);
+
+    Buffer<uint8_t> outputp(w1, h1); 
+    outputp.set_min(xm1, ym1);
+    phase.realize(outputp);
+    FILE* wfp = fopen("images/phase.bin", "wb");
+    for(int i = 0; i < outputp.height(); i++) {
+        for(int j = 0; j < outputp.width(); j++) {
+            uint8_t v = outputp(j+xm1, i+ym1);
+            fwrite(&v, sizeof(uint8_t), 1, wfp);
+        }
+    }
+    fclose(wfp);
+
+    Buffer<uint16_t> outputs(w2, h2); 
+    outputs.set_min(xm2, ym2);
+    suppress.realize(outputs);
+    FILE* wfs = fopen("images/suppress.bin", "wb");
+    for(int i = 0; i < outputs.height(); i++) {
+        for(int j = 0; j < outputs.width(); j++) {
+            uint16_t v = outputs(j+xm2, i+ym2);
+            fwrite(&v, sizeof(uint16_t), 1, wfs);
+        }
+    }
+    fclose(wfs);
 
     //11. save the image
-    Buffer<uint8_t> picture(w, h); 
-    picture.set_min(xm, ym);
+    Buffer<uint8_t> picture(w2, h2); 
+    picture.set_min(xm2, ym2);
     Func result;
     result(x, y) = cast<uint8_t>(suppress(x, y));
     result.realize(picture);
