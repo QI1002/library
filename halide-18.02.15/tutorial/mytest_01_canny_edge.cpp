@@ -21,7 +21,7 @@ using namespace Halide::Tools;
 //A definition for TAU, or 2*PI.
 #define TAU 6.28318530717958647692f
 //#define BORDER_MODE_REPEAT //  default: skip border 
-//#define TARGET_OPENCL // default: CPU
+#define TARGET_OPENCL // default: CPU
 //#define TARGET_CUDA // default: CPU 
 //#define NORMAL_L2 // default: L2
 
