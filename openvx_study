@@ -1,0 +1,72 @@
+[openVX kernels] 
+    // x inputs => y outputs, region/border
+    &invalid_kernel,
+    &colorconvert_kernel,              (1(A)=>1(C) by C = colorconvert(A))(in region)
+    &channelextract_kernel,            ((4(R,G,B,X)=>1(C) by C = R or G, B, X)(in region)
+    &channelcombine_kernel,            ((4(R,G,B,X)=>1(C) by C[x][y] = MAKE_INT32(R,G,B,X))(in region)
+    &sobel3x3_kernel,                  (1(A) => 2(CX, CY) by CX = sobel_x(A) and CY = sobel_y(A))(border)(sobel_x = -101,-202,-101 and sobel_y = -1-2-1,000,121, graident filter)
+    &magnitude_kernel,                 (2(A, B)=>1(C) by C = sqrt(A^2+B^2))(in region)( A = gradient of X, B = graident of Y )
+    &phase_kernel,                     (2(A, B)=>1(C) by C = atan(B/A) and map -PI .. PI to 0 .. 2PI to 0 .. 255)(in region)( A = gradient of X, B = graident of Y )
+    &scale_image_kernel,               (1(A) => 1(C) by C = scale(A))(in region) ( scale from src size to dst size, including nearest, bilinear or area scaling (ex:7x3=3x1))
+    &lut_kernel,                       (1(A)=>1(C) by C = lut(A))(in region)
+    &histogram_kernel,                 (1(A)=>1(histogram) by C = histo(A))(in region)
+    &equalize_hist_kernel,             (1(A)=>1(C) by C = eqhis(A))(in region)
+                                       https://zh.wikipedia.org/wiki/%E7%9B%B4%E6%96%B9%E5%9B%BE%E5%9D%87%E8%A1%A1%E5%8C%96
+    &absdiff_kernel,		       (2(A,B)=>1(C) by C = abs(A-B))(in region)
+    &mean_stddev_kernel,               (1(A) => mean and stddev)(in region)(sum of pixel/#pixel and sum of (pixel-mean)^2/#pixel) 
+    &threshold_kernel,                 (1(A) => 1(C) by threhold(C))(binary(1: pixel > threshold) or range (0: pixel > upper or pixel < lower))
+    &integral_image_kernel,            (1(A)=>1(C) by C = sum of left top image(A))(in region)
+    &erode3x3_kernel,                  (1(A)=>1(C) by C = min(A))(in region) http://monkeycoding.com/?p=577
+    &dilate3x3_kernel,                 (1(A)=>1(C) by C = max(A))(in region) http://monkeycoding.com/?p=577
+    &median3x3_kernel,                 (1(A)=>1(C) by C = filter(A))(border) (filter = median of box3x3)
+    &box3x3_kernel,                    (1(A)=>1(C) by C = filter(A))(border) (box(111,111,111))
+    &gaussian3x3_kernel,               (1(A)=>1(C) by C = filter(A))(border) (gaussian3x3(121,242,121))(i.e C(2,x))
+    &convolution_kernel,               (1(A)=>1(C) by C = colv(A))(border) (customer convolution, max size = 15)
+    &pyramid_kernel,                   (1(A) => 1(pyramid) with N images by pyramid0 = A, pyramid[i] = pyr(pyramid[i-1])(border) (pyr => gaussian5x5 + scale image)
+    &accumulate_kernel,                (1(A)=>1(C) by C = A + C))(in region)
+    &accumulate_weighted_kernel,       (1(A)=>1(C) by C = W*A + (1-W)C))(in region)
+    &accumulate_square_kernel,         (1(A)=>1(C) by C = A*A/scale + C))(in region)
+    &minmaxloc_kernel,                 (1(A)=> maxVal, minVal, maxCount, minCount and max/min array)(in region) (get the pixel max/min value and all pixels are max or min values)
+    &convertdepth_kernel,              (1(A)=>1(C) by C = depthconvert(A))(in region) (depth covert)
+    &and_kernel,                       (2(A,B)=>1(C) by C = A & B))(in region)
+    &or_kernel,                        (2(A,B)=>1(C) by C = A | B))(in region)
+    &xor_kernel,                       (2(A,B)=>1(C) by C = A ^ B))(in region) 
+    &not_kernel,                       (1(A)=>1(C) by C = !A))(in region)
+    &multiply_kernel,                  (2(A, B)=>1(C) by C = A*B or C = A*B*scale)(in region)( with or without scaling )
+    &add_kernel,		       (2(A,B)=>1(C) by C = A + B))(in region)
+    &subtract_kernel,                  (2(A,B)=>1(C) by C = A - B))(in region)
+    &warp_affine_kernel,               (1(A)=> 1(C) by warp(C)) (affline warp = C = M*A+T)(region check)(affline not impact distance)
+    &warp_perspective_kernel,          (1(A)=> 1(C) by warp(C)) (affline warp = C = (M*A+T)/Z)(region check)    
+    &fast9_kernel,                     (1(A)=> #fast corner and where)(border)(check circle 16 points and use suppression to avoid too many corners ?)
+                                       refer https://www.edwardrosten.com/work/fast.html
+    &remap_kernel,                     (1(A)=> 1(C) by C = remap(A))(in region) (remap: C[x][y] = A[x'][y'] if (x',y') = remap(x, y) i.e find the source point for destination point)
+    &halfscale_gaussian_kernel,        (1(A)=> 1(C) by C = gaussian5x5(A))(border) ( gaussian5x5 = 1,4,6,4,1 4,16,24,16,4 6,24,36,24,6 4,16,24,16,4 1,4,6,4,1 )(i.e C(4,x))      
+    &edge_trace_kernel,                (1(A)=> 1(C) by C = edge_threhold(A))(border) (if >upper,yes. if <lower,no. if middle,maybe. spread all yes points to mark all reachable "maybe" points
+    &euclidian_nonmax_harris_kernel,   (1(A)=> 1(C) by find local max strength by 3x3 neighbor and sort them. traverse them if no stronger point in the cycle of radius, C = strength else 0 
+    &harris_score_kernel,              (1(A)=>1(C) by C = Mc(A))(border) (Mc please refer harris matrix in below link)
+                                       https://zh.wikipedia.org/wiki/%E8%A7%92%E6%A3%80%E6%B5%8B
+    &laplacian3x3_kernel,              (1(A)=>1(C) by C = laplacian(A))(border) (laplacian filter = 1,1,1 1,-8,1 1,1,1)
+                                       https://homepages.inf.ed.ac.uk/rbf/HIPR2/log.htm
+    &lister_kernel,                    (1(A)=>array by corner record if strength > 0)(in region)
+    &nonmax_kernel,                    (2(mag,angle)=>1(edge) by edge = mag if mag of angle_left < pixel > mag of angle_right, by 012 345 678 else 0 (mag = box3x3[4]) 
+    &norm_kernel,                      (2(A,B)=>1(C) by C = normalize(A + B))(in region)(norm1 = abs(A)+abs(B), norm2 = sqrt(A*A+B*B) like magnitude_kernel)
+    &scharr3x3_kernel,                 (1(A) => 2(CX, CY) by CX = sobel_x(A) and CY = sobel_y(A))(border)(sobel_x = -3 0 3,-10 0 10,-3 0 3 and sobel_y = -3 -10 -3,0 0 0,3 10 3, graident filter) 
+    &sobelMxN_kernel,                  (1(A) => 2(CX, CY) by CX = sobel_x(A) and CY = sobel_y(A))(border)(sobel filter will has 5x5, 7x7 not only 3x3, graident filter)
+    &harris_kernel,                    (1(A) => 2(gx, gy) => 1(harris score) => 1(euclidean surpression) => # corner lists  to get all corners)(border)
+                                       [virt] 0: Gx, 1: Gy, 2: Score, 3: Suppressed, 4: Shifted Suppressed Log10 ???
+                                       vxSobelMxNNode(g, src, win, virts[0], virts[1]),
+                                       vxHarrisScoreNode(g, virts[0], virts[1], sen, win, blk, virts[2]),
+                                       vxEuclideanNonMaxHarrisNode(g, virts[2], str, min, virts[3]),
+                                       vxImageListerNode(g, virts[3], arr, num_corners),
+    &canny_kernel,                     (1(A) => 2(gx, gy) => 2(mag, phase) => 1(mag by angle supression) => 1(edge threhold) => 1(C) to get edge detection PIC)(border)
+                                       [virt] 0: Gx, 1: Gy, 2: Mag, 3: Phase, 4: Nonmax
+                                       vxSobelMxNNode(graph, input, gradient_size, virts[0], virts[1]), => sobelMxN_kernel
+                                       vxElementwiseNormNode(graph, virts[0], virts[1], norm_type, virts[2]), => norm_kernel
+                                       vxPhaseNode(graph, virts[0], virts[1], virts[3]),
+                                       vxNonMaxSuppressionNode(graph, virts[2], virts[3], virts[4]),
+                                       vxEdgeTraceNode(graph, virts[4], hyst, output),
+    &optpyrlk_kernel,                  use pyramid to get the motion from old image pyramid to new one by prev tracking points to the next tracking points (maybe from corner ..)
+                                       a kind of feature matching to 
+                                       https://en.wikipedia.org/wiki/Kanade%E2%80%93Lucas%E2%80%93Tomasi_feature_tracker
+                                       http://robots.stanford.edu/cs223b04/algo_affine_tracking.pdf
+

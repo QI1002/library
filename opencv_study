@@ -8,7 +8,8 @@ tabfind ../../../core/include/opencv2/core/operations.hpp
 tabfind ../../../objdetect/include/opencv2/objdetect/objdetect.hpp
 tabfind ../../include/opencv2/ocl/ocl.hpp
 tabfind ../../../../samples/ocl/peopledetect.cpp
-C. window : 64x128 so detector size = 7x15x4x9  
+C. 4 major kernels => compute_gradient : compute_hists : normalize_hists : classify_hists
+   window : 64x128 so detector size = 7x15x4x9  
    group of block => 2x2 block 
    block: size=16x16, stride=8x8
    cell: size=12x12, stride=4x4 (i.e. (0,0), (0,4), (4,0), (4,4))
@@ -50,8 +51,19 @@ D. there are 3 potential defects
         smem[tid] = product = product + smem[tid + 2];
     }
 E. what performance optimzation 
-
-
-
-   3) 
-   
+   1) MERGE_GAUSSIAN_LUT: merge gaussian as one table for 2x2x12x12 = 576 but not 2x16x16 = 512 
+      we can avoid one more multiple and to calculate dist_x, dist_y, dist_center_x, dist_center_y
+   2) HISTOGRAM_SIMPLIFY_ALU: 
+      use opencl vector type to speed up, for example float8 a, c; a.s01 = b * c.s01
+   3) use private memory > local memory > private memory 
+      but avoid register spilling 
+   4) use texture/buffer to replace local memory transfer between kernels ?
+      or avoid boundary data getting ? 
+      const sampler_t _samplerImg = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;
+      CLK_ADDRESS_CLAMP: clamp to border color (i.e. 0,0,0 or 0,0,0,1) or CLK_ADDRESS_CLAMP_TO_EDGE 
+   5) use one concat kernel by many kernel 
+   6) use proper type or use large type to packed multiple data 
+      ushort4 bin_tmp  = convert_ushort4(read_imageui(qangle, _samplerImg, (int2)((x>>1), y)));
+      uchar8  bin_vec  = as_uchar8(bin_tmp);
+   7) DETECT_ALL_LAYERS
+      -use clFinish() ? reorder the flow ex: getPyramid ? and seperate all CPU and GPU tasks ?  
