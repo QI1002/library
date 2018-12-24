@@ -1,0 +1,57 @@
+[OCL peopledetect study]
+A. http://mccormickml.com/2013/05/09/hog-person-detector-tutorial/
+B. cd ~/github/library/opencv-2.4.13.6/modules/ocl/src/opencl
+vim objdetect_hog.cl
+tabfind ../hog.cpp
+tabfind ../../../objdetect/src/cascadedetect.cpp
+tabfind ../../../core/include/opencv2/core/operations.hpp
+tabfind ../../../objdetect/include/opencv2/objdetect/objdetect.hpp
+tabfind ../../include/opencv2/ocl/ocl.hpp
+tabfind ../../../../samples/ocl/peopledetect.cpp
+C. window : 64x128 so detector size = 7x15x4x9  
+   group of block => 2x2 block 
+   block: size=16x16, stride=8x8
+   cell: size=12x12, stride=4x4 (i.e. (0,0), (0,4), (4,0), (4,4))
+   per cell has 9 bins (0~180: 10:30:50:70:90:110:130:150:170)
+   
+   1) threhold in normalize    => elem = min(elem, threshold);
+   2) threhold in classify     => labels[gidY * img_win_width + gidX] = (product + free_coef >= threshold);   
+   3) threhold in group labels => groupRectangles(found_locations, group_threshold, 0.2);
+
+   in smem allocation in compute_hists 
+   group of block => block => bins => 4 cells => (width = 12)
+
+   gaussian table from interp_weight
+   cellx = 0, 1 => dist_x: (-4, 8),(-8, 4)
+                   dist_center_x: (-8, 4),(-4, 8) => (0, 12),(4, 12)
+   celly = 0, 1 => dist_y: (-4, 8),(-8, 4)
+                   dist_center_y: (-8, 4),(-4, 8) => (0, 12),(4, 12)
+D. there are 3 potential defects
+   1) in compute_hists 
+    const int dist_y_begin = -4 - 4 * lidY;
+    for (int dist_y = dist_y_begin; dist_y < dist_y_begin + 12; ++dist_y)
+    {
+        float2 vote = (float2) (grad_ptr[0], grad_ptr[1]);
+        QANGLE_TYPE2 bin = (QANGLE_TYPE2) (qangle_ptr[0], qangle_ptr[1]);
+
+        grad_ptr += grad_quadstep; => shall be grad_quadstep*2
+        qangle_ptr += qangle_step; => shall be qangle_step*2
+   2) in compute hists 
+        hist[bin.x * 48] += gaussian * interp_weight * vote.x;
+        hist[bin.y * 48] += gaussian * interp_weight * vote.y;
+      its better to use atomic increase ? 
+   3) in classify_hists 
+    if (tid < 32)
+    {
+        smem[tid] = product = product + smem[tid + 32];
+        smem[tid] = product = product + smem[tid + 16];
+        smem[tid] = product = product + smem[tid + 8];
+        smem[tid] = product = product + smem[tid + 4];
+        smem[tid] = product = product + smem[tid + 2];
+    }
+E. what performance optimzation 
+
+
+
+   3) 
+   
