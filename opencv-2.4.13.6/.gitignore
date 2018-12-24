@@ -1,0 +1,14 @@
+# vim
+*.sw[a-z]
+*.un~
+Session.vim
+
+# make file
+.*
+!.gitignore
+*~
+*.o
+core
+
+# build
+build/*
