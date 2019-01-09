@@ -157,7 +157,7 @@ __kernel void compute_hists_lut_kernel(
 //-------------------------------------------------------------
 //  Normalization of histograms via L2Hys_norm
 //  optimized for the case of 9 bins
-__kernel void normalize_hists_36_kernel(__global float* block_hists,
+__kernel void normalize_hists_36_kernel(__global float* block_hists, const int blocks_total,
                                         const float threshold, __local float *squares)
 {
     const int tid = get_local_id(0);
@@ -166,7 +166,7 @@ __kernel void normalize_hists_36_kernel(__global float* block_hists,
     const int boffset = bid * 36;  /* block-hist offset in the work-group */
     const int hid = tid - boffset; /* histogram bin id, (0 - 35) */
 
-    float elem = block_hists[gid];
+    float elem = (gid < blocks_total) ? block_hists[gid] : 0;
     squares[tid] = elem * elem;
     barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -202,7 +202,8 @@ __kernel void normalize_hists_36_kernel(__global float* block_hists,
     barrier(CLK_LOCAL_MEM_FENCE);
     sum = smem[0] + smem[1] + smem[2] + smem[3] + smem[8];
 
-    block_hists[gid] = elem / (sqrt(sum) + 1e-3f);
+    if (gid < blocks_total)
+        block_hists[gid] = elem / (sqrt(sum) + 1e-3f);
 }
 
 //-------------------------------------------------------------
@@ -253,7 +254,8 @@ float reduce_smem(volatile __local float* smem, int size)
 
 __kernel void normalize_hists_kernel(
     const int nthreads, const int block_hist_size, const int img_block_width,
-    __global float* block_hists, const float threshold, __local float *squares)
+    __global float* block_hists, const int blocks_total,
+    const float threshold, __local float *squares)
 {
     const int tid = get_local_id(0);
     const int gidX = get_group_id(0);

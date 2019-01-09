@@ -1,3 +1,6 @@
+[openCV API]
+https://docs.opencv.org/ref/2.4/d3/d63/classcv_1_1Mat.html
+
 [OCL peopledetect study]
 A. http://mccormickml.com/2013/05/09/hog-person-detector-tutorial/
 B. cd ~/github/library/opencv-2.4.13.6/modules/ocl/src/opencl
@@ -50,7 +53,188 @@ D. there are 3 potential defects
         smem[tid] = product = product + smem[tid + 4];
         smem[tid] = product = product + smem[tid + 2];
     }
-E. what performance optimzation 
+E. Give a example of 128x416 
+
+    qangle_type = CV_8UC2;
+    qangle_step_shift = 0;
+
+    grad.create(img.size(), CV_32FC2); // 32bits float pair
+    qangle.create(img.size(), hog::qangle_type); // 8bits uchar pair
+
+    const size_t block_hist_size = getBlockHistogramSize(); // 36
+    const Size blocks_per_img = numPartsWithin(img.size(), block_size, block_stride); // (416,128), (16,16), 8 => (51, 15)
+    block_hists.create(1,
+        static_cast<int>(block_hist_size * blocks_per_img.area()) + 256, CV_32F); // 36*51*15 + 256 = 27796
+
+    int img_block_width = (width - CELLS_PER_BLOCK_X * CELL_WIDTH + block_stride_x)
+        / block_stride_x; // (416 - 2*8 + 8)/8 = 51 (0,8,...,400)
+    int img_block_height = (height - CELLS_PER_BLOCK_Y * CELL_HEIGHT + block_stride_y)
+        / block_stride_y; // (128 - 2*8 + 8)/8 = 15 (0,8,...,112)
+    int blocks_total = img_block_width * img_block_height; // 51*15 = 765
+
+    int grad_quadstep = grad.step >> 2; // 32bits float pair, >> 2 means 32bits so it's byte step 
+    int qangle_step = qangle.step >> qangle_step_shift;// 8bits uchar pair, >> 0 mean 8bits so it's byte step
+
+    int blocks_in_group = 4;
+    size_t localThreads[3] = { (size_t)blocks_in_group * 24, 2, 1 }; // 96, 2, 1 for 4 blocks for 12 cell x per 2x2 cells  
+    size_t globalThreads[3] = {
+        divUp(img_block_width * img_block_height, blocks_in_group) * localThreads[0], 2, 1 }; 
+        // divUP(765, 4)*96 = 192*96, 2, 1  
+
+    int hists_size = (nbins * CELLS_PER_BLOCK_X * CELLS_PER_BLOCK_Y * 12) * sizeof(float);
+    int final_hists_size = (nbins * CELLS_PER_BLOCK_X * CELLS_PER_BLOCK_Y) * sizeof(float);
+    int smem = (hists_size + final_hists_size) * blocks_in_group;
+
+==============================================
+
+#define CELL_WIDTH 8
+#define CELL_HEIGHT 8
+#define CELLS_PER_BLOCK_X 2
+#define CELLS_PER_BLOCK_Y 2
+#define NTHREADS 256
+
+__kernel void compute_hists_lut_kernel(
+    const int cblock_stride_x, const int cblock_stride_y,  // 8, 8
+    const int cnbins, const int cblock_hist_size, const int img_block_width, // 9, 36, 51
+    const int blocks_in_group, const int blocks_total, // 7, 51x15 = 765
+    const int grad_quadstep, const int qangle_step,
+    __global const float* grad, __global const QANGLE_TYPE* qangle,
+    __global const float* gauss_w_lut,
+    __global float* block_hists, 
+    __local float* smem)
+{
+    const int lx = get_local_id(0); // 0 .. 95 
+    const int lp = lx / 24; /* local group id */ // 0..3 block id in group
+    const int gid = get_group_id(0) * blocks_in_group + lp;/* global group id */ // 765 < 192*4 and 0 .. 3 
+    const int gidY = gid / img_block_width; // 0..14 
+    const int gidX = gid - gidY * img_block_width; // 0..50 (0..767 / 51 => invalid gidX,gidY = (15,0),(15,1),(15,2)
+
+    const int lidX = lx - lp * 24; // 0..23
+    const int lidY = get_local_id(1); // 0..1
+
+    const int cell_x = lidX / 12; // 0..1
+    const int cell_y = lidY; // 0..1
+    const int cell_thread_x = lidX - cell_x * 12; // 0..11
+
+    __local float* hists = smem + lp * cnbins * (CELLS_PER_BLOCK_X *
+        CELLS_PER_BLOCK_Y * 12 + CELLS_PER_BLOCK_X * CELLS_PER_BLOCK_Y);
+    __local float* final_hist = hists + cnbins *
+        (CELLS_PER_BLOCK_X * CELLS_PER_BLOCK_Y * 12);
+
+    const int offset_x = gidX * cblock_stride_x + (cell_x << 2) + cell_thread_x;
+    const int offset_y = gidY * cblock_stride_y + (cell_y << 2);
+
+    __global const float* grad_ptr = (gid < blocks_total) ?
+        grad + offset_y * grad_quadstep + (offset_x << 1) : grad;
+    __global const QANGLE_TYPE* qangle_ptr = (gid < blocks_total) ?
+        qangle + offset_y * qangle_step + (offset_x << 1) : qangle;
+
+    __local float* hist = hists + 12 * (cell_y * CELLS_PER_BLOCK_Y + cell_x) +
+        cell_thread_x;
+    for (int bin_id = 0; bin_id < cnbins; ++bin_id)
+        hist[bin_id * 48] = 0.f;
+
+    const int dist_x = -4 + cell_thread_x - 4 * cell_x;
+    const int dist_center_x = dist_x - 4 * (1 - 2 * cell_x);
+
+    const int dist_y_begin = -4 - 4 * lidY;
+    for (int dist_y = dist_y_begin; dist_y < dist_y_begin + 12; ++dist_y)
+    {
+        float2 vote = (float2) (grad_ptr[0], grad_ptr[1]);
+        QANGLE_TYPE2 bin = (QANGLE_TYPE2) (qangle_ptr[0], qangle_ptr[1]);
+
+        grad_ptr += grad_quadstep;
+        qangle_ptr += qangle_step;
+
+        int dist_center_y = dist_y - 4 * (1 - 2 * cell_y);
+
+        int idx = (dist_center_y + 8) * 16 + (dist_center_x + 8);
+        float gaussian = gauss_w_lut[idx];
+        idx = (dist_y + 8) * 16 + (dist_x + 8);
+        float interp_weight = gauss_w_lut[256+idx];
+
+        hist[bin.x * 48] += gaussian * interp_weight * vote.x;
+        hist[bin.y * 48] += gaussian * interp_weight * vote.y;
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    volatile __local float* hist_ = hist;
+    for (int bin_id = 0; bin_id < cnbins; ++bin_id, hist_ += 48)
+    {
+        if (cell_thread_x < 6)
+            hist_[0] += hist_[6];
+        barrier(CLK_LOCAL_MEM_FENCE);
+        if (cell_thread_x < 3)
+            hist_[0] += hist_[3];
+#ifdef CPU
+        barrier(CLK_LOCAL_MEM_FENCE);
+#endif
+        if (cell_thread_x == 0)
+            final_hist[(cell_x * 2 + cell_y) * cnbins + bin_id] =
+                hist_[0] + hist_[1] + hist_[2];
+    }
+#ifdef CPU
+    barrier(CLK_LOCAL_MEM_FENCE);
+#endif
+
+    int tid = (cell_y * CELLS_PER_BLOCK_Y + cell_x) * 12 + cell_thread_x; // (0..3)*12 + (0.11) => 0 .. 47
+    if ((tid < cblock_hist_size) && (gid < blocks_total)) // only use 0..35 of tid (0..47) and gid = 192x4 
+    {
+        __global float* block_hist = block_hists +
+            (gidY * img_block_width + gidX) * cblock_hist_size;
+        block_hist[tid] = final_hist[tid];
+    }
+}
+
+==============================================
+
+    int block_hist_size = nbins * CELLS_PER_BLOCK_X * CELLS_PER_BLOCK_Y; // 36
+    int img_block_width = (width - CELLS_PER_BLOCK_X * CELL_WIDTH + block_stride_x)
+        / block_stride_x; // 51
+    int img_block_height = (height - CELLS_PER_BLOCK_Y * CELL_HEIGHT + block_stride_y)
+        / block_stride_y; // 15 
+    int nthreads;
+    size_t globalThreads[3] = { 1, 1, 1  };
+    size_t localThreads[3] = { 1, 1, 1  };
+
+        /* optimized for the case of 9 bins */
+        kernelName = "normalize_hists_36_kernel";
+        int blocks_in_group = NTHREADS / block_hist_size; // 256/36 = 7
+        nthreads = blocks_in_group * block_hist_size; // 7*36 = 252 
+        int num_groups = divUp( img_block_width * img_block_height, blocks_in_group); // 51*15/7 = 110
+        globalThreads[0] = nthreads * num_groups; 252*110 ~= 51*15*36
+        localThreads[0] = nthreads;
+
+==============================================
+
+        nthreads = 256;
+        kernelName = "classify_hists_252_kernel";
+        args.push_back( make_pair( sizeof(cl_int), (void *)&cdescr_width));  // 252 = 7*36
+        args.push_back( make_pair( sizeof(cl_int), (void *)&cdescr_height)); // 15
+        break;
+
+    int win_block_stride_x = win_stride_x / block_stride_x; // 1
+    int win_block_stride_y = win_stride_y / block_stride_y; // 1
+    int img_win_width = (width - win_width + win_stride_x) / win_stride_x; // 45 0 .. 44
+    int img_win_height = (height - win_height + win_stride_y) / win_stride_y; // 1 0 .. 0
+    int img_block_width = (width - CELLS_PER_BLOCK_X * CELL_WIDTH + block_stride_x) /
+        block_stride_x;
+
+    size_t globalThreads[3] = { (size_t)img_win_width * nthreads, (size_t)img_win_height, 1 }; // 45*256, 1 
+    size_t localThreads[3] = { (size_t)nthreads, 1, 1 };
+    args.push_back( make_pair( sizeof(cl_int), (void *)&cblock_hist_size));
+    args.push_back( make_pair( sizeof(cl_int), (void *)&img_win_width));
+    args.push_back( make_pair( sizeof(cl_int), (void *)&img_block_width));
+    args.push_back( make_pair( sizeof(cl_int), (void *)&win_block_stride_x));
+    args.push_back( make_pair( sizeof(cl_int), (void *)&win_block_stride_y));
+    args.push_back( make_pair( sizeof(cl_mem), (void *)&block_hists.data));
+    args.push_back( make_pair( sizeof(cl_mem), (void *)&coefs.data));
+    args.push_back( make_pair( sizeof(cl_float), (void *)&free_coef));
+    args.push_back( make_pair( sizeof(cl_float), (void *)&threshold));
+    args.push_back( make_pair( sizeof(cl_mem), (void *)&labels.data));
+
+
+F. what performance optimzation 
    1) MERGE_GAUSSIAN_LUT: merge gaussian as one table for 2x2x12x12 = 576 but not 2x16x16 = 512 
       we can avoid one more multiple and to calculate dist_x, dist_y, dist_center_x, dist_center_y
    2) HISTOGRAM_SIMPLIFY_ALU: 

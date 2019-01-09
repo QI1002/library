@@ -158,6 +158,8 @@ cv::ocl::HOGDescriptor::HOGDescriptor(Size win_size_, Size block_size_, Size blo
     else
         hog_device_cpu = false;
 
+    configs = 1;
+    printf("hog_device_cpu = %s\n", hog_device_cpu ? "TRUE" : "FALSE");
 }
 
 size_t cv::ocl::HOGDescriptor::getDescriptorSize() const
@@ -223,7 +225,8 @@ void cv::ocl::HOGDescriptor::init_buffer(const oclMat &img, Size win_stride)
     const size_t block_hist_size = getBlockHistogramSize();
     const Size blocks_per_img = numPartsWithin(img.size(), block_size, block_stride);
     block_hists.create(1,
-        static_cast<int>(block_hist_size * blocks_per_img.area()) + 256, CV_32F);
+        static_cast<int>(block_hist_size * blocks_per_img.area()), CV_32F);
+        //static_cast<int>(block_hist_size * blocks_per_img.area()) + 256, CV_32F);
 
     Size wins_per_img = numPartsWithin(img.size(), win_size, win_stride);
     labels.create(1, wins_per_img.area(), CV_8U);
@@ -260,7 +263,13 @@ void cv::ocl::HOGDescriptor::computeGradient(const oclMat &img, oclMat &lgrad, o
     }
 }
 
+void regression_dump(const oclMat &img, string filename) {
+    Mat img_;
+    img.download(img_);
 
+    cv::FileStorage file(filename, cv::FileStorage::WRITE);
+    file << "matName" << img_;
+}
 void cv::ocl::HOGDescriptor::computeBlockHistograms(const oclMat &img)
 {
     computeGradient(img, this->grad, this->qangle);
@@ -268,8 +277,20 @@ void cv::ocl::HOGDescriptor::computeBlockHistograms(const oclMat &img)
     hog::compute_hists(nbins, block_stride.width, block_stride.height, effect_size.height,
         effect_size.width, grad, qangle, gauss_w_lut, block_hists);
 
+    if (configs & 1) {
+        finish();
+        regression_dump(this->grad, "hog_grad.ext");
+        regression_dump(this->qangle, "hog_qangle.ext");
+        regression_dump(block_hists, "hog_purehists.ext");
+    }
+
     hog::normalize_hists(nbins, block_stride.width, block_stride.height, effect_size.height,
         effect_size.width, block_hists, (float)threshold_L2hys);
+
+    if (configs & 1) {
+        finish();
+        regression_dump(block_hists, "hog_normhists.ext");
+    }
 }
 
 
@@ -1700,6 +1721,7 @@ void cv::ocl::device::hog::normalize_hists(int nbins,
         / block_stride_x;
     int img_block_height = (height - CELLS_PER_BLOCK_Y * CELL_HEIGHT + block_stride_y)
         / block_stride_y;
+    int blocks_total = img_block_width * img_block_height * block_hist_size;
     int nthreads;
     size_t globalThreads[3] = { 1, 1, 1  };
     size_t localThreads[3] = { 1, 1, 1  };
@@ -1732,6 +1754,7 @@ void cv::ocl::device::hog::normalize_hists(int nbins,
     }
 
     args.push_back( make_pair( sizeof(cl_mem), (void *)&block_hists.data));
+    args.push_back( make_pair( sizeof(cl_int), (void *)&blocks_total));
     args.push_back( make_pair( sizeof(cl_float), (void *)&threshold));
     args.push_back( make_pair( nthreads * sizeof(float), (void *)NULL));
 

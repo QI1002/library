@@ -1071,6 +1071,7 @@ namespace cv
             double threshold_L2hys;
             bool gamma_correction;
             int nlevels;
+            int configs;
 
         protected:
             // initialize buffers; only need to do once in case of multiscale detection
