@@ -80,30 +80,34 @@ __kernel void compute_hists_lut_kernel_new(
     const int cell_y = get_local_id(1);
     const int cid = cell_x * CELLS_PER_BLOCK_Y + cell_y;
 
+    const int offset_x = gidX * cblock_stride_x + (cell_x << 2);
+    const int offset_y = gidY * cblock_stride_y + (cell_y << 2);
+    __global const float* grad_ptr = (gid < blocks_total) ?
+        grad + offset_y * grad_quadstep + (offset_x << 1) : grad;
+    __global const QANGLE_TYPE* qangle_ptr = (gid < blocks_total) ?
+        qangle + offset_y * qangle_step + (offset_x << 1) : qangle;
+
     __local float* final_hist = smem +  lp * cnbins * (CELLS_PER_BLOCK_X * 
 	CELLS_PER_BLOCK_Y) + cid * cnbins;
 
     for (int bin_id = 0; bin_id < cnbins; ++bin_id)
         final_hist[bin_id] = 0.f;
+    
+    int i, j, end;
+    for (i = cid * 144, j = 0, end = i + 144; i < end; i++) {
+        float2 vote = (float2) (grad_ptr[0], grad_ptr[1]);
+        QANGLE_TYPE2 bin = (QANGLE_TYPE2) (qangle_ptr[0], qangle_ptr[1]);
 
-    for (int dx = 0; dx < 12; dx++) {
-        const int offset_x = gidX * cblock_stride_x + (cell_x << 2) + dx;
-        const int offset_y = gidY * cblock_stride_y + (cell_y << 2);
-        __global const float* grad_ptr = (gid < blocks_total) ?
-            grad + offset_y * grad_quadstep + (offset_x << 1) : grad;
-        __global const QANGLE_TYPE* qangle_ptr = (gid < blocks_total) ?
-            qangle + offset_y * qangle_step + (offset_x << 1) : qangle;
-        int idx = (cell_y * 2 + cell_x) *144 + dx;
-	for (int dy = idx; dy < (idx+144); dy += 12)
-        {
-            float2 vote = (float2) (grad_ptr[0], grad_ptr[1]);
-            QANGLE_TYPE2 bin = (QANGLE_TYPE2) (qangle_ptr[0], qangle_ptr[1]);
-
-            grad_ptr += grad_quadstep;
-            qangle_ptr += qangle_step;
+        grad_ptr += 2;
+        qangle_ptr += 2;
         
-            final_hist[bin.x] += gauss_w_lut[dy] * vote.x;
-            final_hist[bin.y] += gauss_w_lut[dy] * vote.y;
+        final_hist[bin.x] += gauss_w_lut[i] * vote.x;
+        final_hist[bin.y] += gauss_w_lut[i] * vote.y;
+    
+	if (++j == 12) {
+	    grad_ptr += (grad_quadstep - 24);
+            qangle_ptr += (qangle_step - 24);
+	    j = 0;
 	}
     }
 
@@ -164,7 +168,6 @@ __kernel void compute_hists_lut_kernel(
     for (int dist_y = idx; dist_y < (idx+144); dist_y+=12)
     {
         float2 vote = (float2) (grad_ptr[0], grad_ptr[1]);
-        //int2 bin = ((int2) (qangle_ptr[0], qangle_ptr[1]))*48;
         QANGLE_TYPE2 bin = (QANGLE_TYPE2) (qangle_ptr[0], qangle_ptr[1]);
 
         grad_ptr += grad_quadstep;
