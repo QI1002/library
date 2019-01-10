@@ -1,1 +1,1 @@
-cd build && make example_ocl_peopledetect
+cd build && make -j8 example_ocl_peopledetect

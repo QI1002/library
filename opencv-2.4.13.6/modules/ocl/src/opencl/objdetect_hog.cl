@@ -60,6 +60,63 @@
 
 //----------------------------------------------------------------------------
 // Histogram computation
+// 1 threads for a cell, 4 threads per block
+// Use pre-computed gaussian and interp_weight lookup tables
+__kernel void compute_hists_lut_kernel_new(
+    const int cblock_stride_x, const int cblock_stride_y,
+    const int cnbins, const int cblock_hist_size, const int img_block_width,
+    const int blocks_in_group, const int blocks_total,
+    const int grad_quadstep, const int qangle_step,
+    __global const float* grad, __global const QANGLE_TYPE* qangle,
+    __global const float* gauss_w_lut,
+    __global float* block_hists, __local float* smem)
+{
+    const int lx = get_local_id(0);
+    const int lp = lx / 2; /* local group id */
+    const int gid = get_group_id(0) * blocks_in_group + lp;/* global group id */
+    const int gidY = gid / img_block_width;
+    const int gidX = gid - gidY * img_block_width;
+    const int cell_x = lx - lp * 2;
+    const int cell_y = get_local_id(1);
+    const int cid = cell_x * CELLS_PER_BLOCK_Y + cell_y;
+
+    __local float* final_hist = smem +  lp * cnbins * (CELLS_PER_BLOCK_X * 
+	CELLS_PER_BLOCK_Y) + cid * cnbins;
+
+    for (int bin_id = 0; bin_id < cnbins; ++bin_id)
+        final_hist[bin_id] = 0.f;
+
+    for (int dx = 0; dx < 12; dx++) {
+        const int offset_x = gidX * cblock_stride_x + (cell_x << 2) + dx;
+        const int offset_y = gidY * cblock_stride_y + (cell_y << 2);
+        __global const float* grad_ptr = (gid < blocks_total) ?
+            grad + offset_y * grad_quadstep + (offset_x << 1) : grad;
+        __global const QANGLE_TYPE* qangle_ptr = (gid < blocks_total) ?
+            qangle + offset_y * qangle_step + (offset_x << 1) : qangle;
+        int idx = (cell_y * 2 + cell_x) *144 + dx;
+	for (int dy = idx; dy < (idx+144); dy += 12)
+        {
+            float2 vote = (float2) (grad_ptr[0], grad_ptr[1]);
+            QANGLE_TYPE2 bin = (QANGLE_TYPE2) (qangle_ptr[0], qangle_ptr[1]);
+
+            grad_ptr += grad_quadstep;
+            qangle_ptr += qangle_step;
+        
+            final_hist[bin.x] += gauss_w_lut[dy] * vote.x;
+            final_hist[bin.y] += gauss_w_lut[dy] * vote.y;
+	}
+    }
+
+    if (gid < blocks_total) {
+        __global float* block_hist = block_hists + gid * 
+	    cblock_hist_size + cid * cnbins;
+        for (int bin_id = 0; bin_id < cnbins; ++bin_id)
+            block_hist[bin_id] = final_hist[bin_id];
+    }
+}
+
+//----------------------------------------------------------------------------
+// Histogram computation
 // 12 threads for a cell, 12x4 threads per block
 // Use pre-computed gaussian and interp_weight lookup tables
 __kernel void compute_hists_lut_kernel(
@@ -102,7 +159,6 @@ __kernel void compute_hists_lut_kernel(
     for (int bin_id = 0; bin_id < cnbins; ++bin_id)
         hist[bin_id] = 0.f;
 
-#if 1
     int idx = (cell_y * 2 + cell_x) *144 + cell_thread_x;
 
     for (int dist_y = idx; dist_y < (idx+144); dist_y+=12)
@@ -117,31 +173,6 @@ __kernel void compute_hists_lut_kernel(
         hist[bin.x] += gauss_w_lut[dist_y] * vote.x;
         hist[bin.y] += gauss_w_lut[dist_y] * vote.y;
     }
-#else
-    const int dist_x = -4 + cell_thread_x - 4 * cell_x;
-    const int dist_center_x = dist_x - 4 * (1 - 2 * cell_x);
-
-    const int dist_y_begin = -4 - 4 * lidY;
-    for (int dist_y = dist_y_begin; dist_y < dist_y_begin + 12; ++dist_y)
-    {
-        float2 vote = (float2) (grad_ptr[0], grad_ptr[1]);
-        int2 bin = ((int2) (qangle_ptr[0], qangle_ptr[1]))*48;
-
-        grad_ptr += grad_quadstep;
-        qangle_ptr += qangle_step;
-
-        int dist_center_y = dist_y - 4 * (1 - 2 * cell_y);
-
-        int idx = (dist_center_y + 8) * 16 + (dist_center_x + 8);
-        float gaussian = gauss_w_lut[idx];
-        idx = (dist_y + 8) * 16 + (dist_x + 8);
-        float interp_weight = gauss_w_lut[256+idx];
-
-        hist[bin.x] += gaussian * interp_weight * vote.x;
-        hist[bin.y] += gaussian * interp_weight * vote.y;
-    }
-#endif
-
     barrier(CLK_LOCAL_MEM_FENCE);
 
     volatile __local float* hist_ = hist;

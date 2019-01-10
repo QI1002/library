@@ -234,7 +234,6 @@ void cv::ocl::HOGDescriptor::init_buffer(const oclMat &img, Size win_stride)
     float sigma = getWinSigma();
     float scale = 1.f / (2.f * sigma * sigma);
 
-#if 1 
     Mat cell_matrix(1, 4*12*12, CV_32FC1); 
     int idx = 0;
     for (int cell_y = 0; cell_y < 2; cell_y++)
@@ -258,18 +257,6 @@ void cv::ocl::HOGDescriptor::init_buffer(const oclMat &img, Size win_stride)
     } 
 
     gauss_w_lut.upload(cell_matrix);
-#else
-    Mat gaussian_lut(1, 512, CV_32FC1);
-    int idx = 0;
-    for(int i=-8; i<8; i++)
-        for(int j=-8; j<8; j++)
-            gaussian_lut.at<float>(idx++) = std::exp(-(j * j + i * i) * scale);
-    for(int i=-8; i<8; i++)
-        for(int j=-8; j<8; j++)
-            gaussian_lut.at<float>(idx++) = (8.f - fabs(j + 0.5f)) * (8.f - fabs(i + 0.5f)) / 64.f;
-    
-    gauss_w_lut.upload(gaussian_lut);
-#endif    
 }
 
 void cv::ocl::HOGDescriptor::computeGradient(const oclMat &img, oclMat &lgrad, oclMat &lqangle)
@@ -1682,7 +1669,6 @@ void cv::ocl::device::hog::compute_hists(int nbins,
 {
     Context *clCxt = Context::getContext();
     vector< pair<size_t, const void *> > args;
-    string kernelName = "compute_hists_lut_kernel";
 
     int img_block_width = (width - CELLS_PER_BLOCK_X * CELL_WIDTH + block_stride_x)
         / block_stride_x;
@@ -1694,6 +1680,16 @@ void cv::ocl::device::hog::compute_hists(int nbins,
     int qangle_step = qangle.step >> qangle_step_shift;
 
     int blocks_in_group = 4;
+#if 1
+    string kernelName = "compute_hists_lut_kernel_new";
+    size_t localThreads[3] = { (size_t)blocks_in_group * 2, 2, 1 };
+    size_t globalThreads[3] = {
+        divUp(img_block_width * img_block_height, blocks_in_group) * localThreads[0], 2, 1 };
+
+    int final_hists_size = (nbins * CELLS_PER_BLOCK_X * CELLS_PER_BLOCK_Y) * sizeof(float);
+    int smem = final_hists_size * blocks_in_group;
+#else    
+    string kernelName = "compute_hists_lut_kernel";
     size_t localThreads[3] = { (size_t)blocks_in_group * 24, 2, 1 };
     size_t globalThreads[3] = {
         divUp(img_block_width * img_block_height, blocks_in_group) * localThreads[0], 2, 1 };
@@ -1701,6 +1697,7 @@ void cv::ocl::device::hog::compute_hists(int nbins,
     int hists_size = (nbins * CELLS_PER_BLOCK_X * CELLS_PER_BLOCK_Y * 12) * sizeof(float);
     int final_hists_size = (nbins * CELLS_PER_BLOCK_X * CELLS_PER_BLOCK_Y) * sizeof(float);
     int smem = (hists_size + final_hists_size) * blocks_in_group;
+#endif
 
     args.push_back( make_pair( sizeof(cl_int), (void *)&cblock_stride_x));
     args.push_back( make_pair( sizeof(cl_int), (void *)&cblock_stride_y));
