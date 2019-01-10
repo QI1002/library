@@ -148,16 +148,16 @@ __kernel void compute_hists_lut_kernel(
     for (int bin_id = 0; bin_id < cnbins; ++bin_id, hist_ ++)
     {
         if (cell_thread_x < 6)
-            hist_[0] += hist_[54];
+            hist_[0] += hist_[6*cnbins];
         barrier(CLK_LOCAL_MEM_FENCE);
         if (cell_thread_x < 3)
-            hist_[0] += hist_[27];
+            hist_[0] += hist_[3*cnbins];
 #ifdef CPU
         barrier(CLK_LOCAL_MEM_FENCE);
 #endif
         if (cell_thread_x == 0)
             final_hist[(cell_x * 2 + cell_y) * cnbins + bin_id] =
-                hist_[0] + hist_[9] + hist_[18];
+                hist_[0] + hist_[1*cnbins] + hist_[2*cnbins];
     }
 #ifdef CPU
     barrier(CLK_LOCAL_MEM_FENCE);
