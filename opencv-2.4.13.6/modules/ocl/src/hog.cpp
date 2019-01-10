@@ -1681,15 +1681,15 @@ void cv::ocl::device::hog::compute_hists(int nbins,
     int grad_quadstep = grad.step >> 2;
     int qangle_step = qangle.step >> qangle_step_shift;
 
-    int blocks_in_group = 4;
-
 #ifdef NEW_COMPUTE_HIST
+    int blocks_in_group = 64;
     string kernelName = "compute_hists_lut_kernel_new";
     size_t localThreads[3] = { (size_t)blocks_in_group * 2, 2, 1 };
     size_t globalThreads[3] = {
         divUp(img_block_width * img_block_height, blocks_in_group) * localThreads[0], 2, 1 };
     (void)(nbins); // skip unreference warning
 #else    
+    int blocks_in_group = 4;
     string kernelName = "compute_hists_lut_kernel";
     size_t localThreads[3] = { (size_t)blocks_in_group * 24, 2, 1 };
     size_t globalThreads[3] = {
