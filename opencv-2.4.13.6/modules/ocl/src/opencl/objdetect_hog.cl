@@ -97,10 +97,10 @@ __kernel void compute_hists_lut_kernel(
     __global const QANGLE_TYPE* qangle_ptr = (gid < blocks_total) ?
         qangle + offset_y * qangle_step + (offset_x << 1) : qangle;
 
-    __local float* hist = hists + 12 * (cell_y * CELLS_PER_BLOCK_Y + cell_x) +
-        cell_thread_x;
+    __local float* hist = hists + (12 * (cell_y * CELLS_PER_BLOCK_Y + cell_x) +
+        cell_thread_x) * cnbins;
     for (int bin_id = 0; bin_id < cnbins; ++bin_id)
-        hist[bin_id * 48] = 0.f;
+        hist[bin_id] = 0.f;
 
 #if 1
     int idx = (cell_y * 2 + cell_x) *144 + cell_thread_x;
@@ -108,7 +108,8 @@ __kernel void compute_hists_lut_kernel(
     for (int dist_y = idx; dist_y < (idx+144); dist_y+=12)
     {
         float2 vote = (float2) (grad_ptr[0], grad_ptr[1]);
-        int2 bin = ((int2) (qangle_ptr[0], qangle_ptr[1]))*48;
+        //int2 bin = ((int2) (qangle_ptr[0], qangle_ptr[1]))*48;
+        QANGLE_TYPE2 bin = (QANGLE_TYPE2) (qangle_ptr[0], qangle_ptr[1]);
 
         grad_ptr += grad_quadstep;
         qangle_ptr += qangle_step;
@@ -144,19 +145,19 @@ __kernel void compute_hists_lut_kernel(
     barrier(CLK_LOCAL_MEM_FENCE);
 
     volatile __local float* hist_ = hist;
-    for (int bin_id = 0; bin_id < cnbins; ++bin_id, hist_ += 48)
+    for (int bin_id = 0; bin_id < cnbins; ++bin_id, hist_ ++)
     {
         if (cell_thread_x < 6)
-            hist_[0] += hist_[6];
+            hist_[0] += hist_[54];
         barrier(CLK_LOCAL_MEM_FENCE);
         if (cell_thread_x < 3)
-            hist_[0] += hist_[3];
+            hist_[0] += hist_[27];
 #ifdef CPU
         barrier(CLK_LOCAL_MEM_FENCE);
 #endif
         if (cell_thread_x == 0)
             final_hist[(cell_x * 2 + cell_y) * cnbins + bin_id] =
-                hist_[0] + hist_[1] + hist_[2];
+                hist_[0] + hist_[9] + hist_[18];
     }
 #ifdef CPU
     barrier(CLK_LOCAL_MEM_FENCE);
