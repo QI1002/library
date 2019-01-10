@@ -233,6 +233,32 @@ void cv::ocl::HOGDescriptor::init_buffer(const oclMat &img, Size win_stride)
 
     float sigma = getWinSigma();
     float scale = 1.f / (2.f * sigma * sigma);
+
+#if 1 
+    Mat cell_matrix(1, 4*12*12, CV_32FC1); 
+    int idx = 0;
+    for (int cell_y = 0; cell_y < 2; cell_y++)
+    {
+        for (int cell_x = 0; cell_x < 2; cell_x++)
+        {  
+            int dy = -4 - 4 * cell_y;
+            for (int dist_y_end = dy + 12; dy < dist_y_end; ++dy)
+            {
+                int cy = dy - 4 * (1 - 2 * cell_y);
+                int dx = -4 - 4 * cell_x;
+                for (int dist_x_end = dx + 12; dx < dist_x_end; ++dx)
+                {
+                    int cx = dx - 4 * (1 - 2 * cell_x);
+                    float gaussian = std::exp(-( cy * cy + cx * cx) * scale);
+                    float interp_weight = (8.f - fabs(dy + 0.5f)) * (8.f - fabs(dx + 0.5f)) / 64.f;
+                    cell_matrix.at<float>(idx++) = gaussian*interp_weight; 
+                }
+            }
+        }
+    } 
+
+    gauss_w_lut.upload(cell_matrix);
+#else
     Mat gaussian_lut(1, 512, CV_32FC1);
     int idx = 0;
     for(int i=-8; i<8; i++)
@@ -241,8 +267,9 @@ void cv::ocl::HOGDescriptor::init_buffer(const oclMat &img, Size win_stride)
     for(int i=-8; i<8; i++)
         for(int j=-8; j<8; j++)
             gaussian_lut.at<float>(idx++) = (8.f - fabs(j + 0.5f)) * (8.f - fabs(i + 0.5f)) / 64.f;
-
+    
     gauss_w_lut.upload(gaussian_lut);
+#endif    
 }
 
 void cv::ocl::HOGDescriptor::computeGradient(const oclMat &img, oclMat &lgrad, oclMat &lqangle)
@@ -278,7 +305,7 @@ void cv::ocl::HOGDescriptor::computeBlockHistograms(const oclMat &img)
         effect_size.width, grad, qangle, gauss_w_lut, block_hists);
 
     if (configs & 1) {
-        finish();
+        //finish();
         regression_dump(this->grad, "hog_grad.ext");
         regression_dump(this->qangle, "hog_qangle.ext");
         regression_dump(block_hists, "hog_purehists.ext");
@@ -288,7 +315,7 @@ void cv::ocl::HOGDescriptor::computeBlockHistograms(const oclMat &img)
         effect_size.width, block_hists, (float)threshold_L2hys);
 
     if (configs & 1) {
-        finish();
+        //finish();
         regression_dump(block_hists, "hog_normhists.ext");
     }
 }

@@ -102,6 +102,21 @@ __kernel void compute_hists_lut_kernel(
     for (int bin_id = 0; bin_id < cnbins; ++bin_id)
         hist[bin_id * 48] = 0.f;
 
+#if 1
+    int idx = (cell_y * 2 + cell_x) *144 + cell_thread_x;
+
+    for (int dist_y = idx; dist_y < (idx+144); dist_y+=12)
+    {
+        float2 vote = (float2) (grad_ptr[0], grad_ptr[1]);
+        int2 bin = ((int2) (qangle_ptr[0], qangle_ptr[1]))*48;
+
+        grad_ptr += grad_quadstep;
+        qangle_ptr += qangle_step;
+        
+        hist[bin.x] += gauss_w_lut[dist_y] * vote.x;
+        hist[bin.y] += gauss_w_lut[dist_y] * vote.y;
+    }
+#else
     const int dist_x = -4 + cell_thread_x - 4 * cell_x;
     const int dist_center_x = dist_x - 4 * (1 - 2 * cell_x);
 
@@ -109,7 +124,7 @@ __kernel void compute_hists_lut_kernel(
     for (int dist_y = dist_y_begin; dist_y < dist_y_begin + 12; ++dist_y)
     {
         float2 vote = (float2) (grad_ptr[0], grad_ptr[1]);
-        QANGLE_TYPE2 bin = (QANGLE_TYPE2) (qangle_ptr[0], qangle_ptr[1]);
+        int2 bin = ((int2) (qangle_ptr[0], qangle_ptr[1]))*48;
 
         grad_ptr += grad_quadstep;
         qangle_ptr += qangle_step;
@@ -121,9 +136,11 @@ __kernel void compute_hists_lut_kernel(
         idx = (dist_y + 8) * 16 + (dist_x + 8);
         float interp_weight = gauss_w_lut[256+idx];
 
-        hist[bin.x * 48] += gaussian * interp_weight * vote.x;
-        hist[bin.y * 48] += gaussian * interp_weight * vote.y;
+        hist[bin.x] += gaussian * interp_weight * vote.x;
+        hist[bin.y] += gaussian * interp_weight * vote.y;
     }
+#endif
+
     barrier(CLK_LOCAL_MEM_FENCE);
 
     volatile __local float* hist_ = hist;
@@ -147,11 +164,7 @@ __kernel void compute_hists_lut_kernel(
 
     int tid = (cell_y * CELLS_PER_BLOCK_Y + cell_x) * 12 + cell_thread_x;
     if ((tid < cblock_hist_size) && (gid < blocks_total))
-    {
-        __global float* block_hist = block_hists +
-            (gidY * img_block_width + gidX) * cblock_hist_size;
-        block_hist[tid] = final_hist[tid];
-    }
+        block_hists[gid * cblock_hist_size + tid] = final_hist[tid];
 }
 
 //-------------------------------------------------------------
