@@ -62,6 +62,29 @@
 // Histogram computation
 // 1 threads for a cell, 4 threads per block
 // Use pre-computed gaussian and interp_weight lookup tables
+
+#define DO_2HIST(h, key, val2) \
+            h.s01 += ((key == 0) ? val2 : 0); \
+            h.s12 += ((key == 1) ? val2 : 0); \
+            h.s23 += ((key == 2) ? val2 : 0); \
+            h.s34 += ((key == 3) ? val2 : 0); \
+            h.s45 += ((key == 4) ? val2 : 0); \
+            h.s56 += ((key == 5) ? val2 : 0); \
+            h.s67 += ((key == 6) ? val2 : 0); \
+            h.s78 += ((key == 7) ? val2 : 0); \
+            h.s80 += ((key == 8) ? val2 : 0);
+
+#define SET_2HIST(src, dst) \
+            dst[0] = src.s0; \
+            dst[1] = src.s1; \
+            dst[2] = src.s2; \
+            dst[3] = src.s3; \
+            dst[4] = src.s4; \
+            dst[5] = src.s5; \
+            dst[6] = src.s6; \
+            dst[7] = src.s7; \
+            dst[8] = src.s8;
+	    
 __kernel void compute_hists_lut_kernel_new(
     const int cblock_stride_x, const int cblock_stride_y,
     const int cnbins, const int cblock_hist_size, const int img_block_width,
@@ -69,7 +92,7 @@ __kernel void compute_hists_lut_kernel_new(
     const int grad_quadstep, const int qangle_step,
     __global const float* grad, __global const QANGLE_TYPE* qangle,
     __global const float* gauss_w_lut,
-    __global float* block_hists, __local float* smem)
+    __global float* block_hists)
 {
     const int lx = get_local_id(0);
     const int lp = lx / 2; /* local group id */
@@ -87,13 +110,7 @@ __kernel void compute_hists_lut_kernel_new(
     __global const QANGLE_TYPE* qangle_ptr = (gid < blocks_total) ?
         qangle + offset_y * qangle_step + (offset_x << 1) : qangle;
 
-    __local float* final_hist = smem +  lp * cnbins * (CELLS_PER_BLOCK_X * 
-	CELLS_PER_BLOCK_Y) + cid * cnbins;
-
-    for (int bin_id = 0; bin_id < cnbins; ++bin_id)
-        final_hist[bin_id] = 0.f;
-    
-    int i, j, end;
+    int i, j, end; float16 hist = 0.0f;
     for (i = cid * 144, j = 0, end = i + 144; i < end; i++) {
         float2 vote = (float2) (grad_ptr[0], grad_ptr[1]);
         QANGLE_TYPE2 bin = (QANGLE_TYPE2) (qangle_ptr[0], qangle_ptr[1]);
@@ -101,8 +118,7 @@ __kernel void compute_hists_lut_kernel_new(
         grad_ptr += 2;
         qangle_ptr += 2;
         
-        final_hist[bin.x] += gauss_w_lut[i] * vote.x;
-        final_hist[bin.y] += gauss_w_lut[i] * vote.y;
+	DO_2HIST(hist, bin.x, gauss_w_lut[i] * vote);
     
 	if (++j == 12) {
 	    grad_ptr += (grad_quadstep - 24);
@@ -114,8 +130,7 @@ __kernel void compute_hists_lut_kernel_new(
     if (gid < blocks_total) {
         __global float* block_hist = block_hists + gid * 
 	    cblock_hist_size + cid * cnbins;
-        for (int bin_id = 0; bin_id < cnbins; ++bin_id)
-            block_hist[bin_id] = final_hist[bin_id];
+	SET_2HIST(hist, block_hist);
     }
 }
 

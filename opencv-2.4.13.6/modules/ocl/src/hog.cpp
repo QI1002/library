@@ -54,6 +54,7 @@ using namespace cv::ocl;
 #define CELLS_PER_BLOCK_X 2
 #define CELLS_PER_BLOCK_Y 2
 #define NTHREADS 256
+#define NEW_COMPUTE_HIST
 
 static bool hog_device_cpu;
 
@@ -277,13 +278,14 @@ void cv::ocl::HOGDescriptor::computeGradient(const oclMat &img, oclMat &lgrad, o
     }
 }
 
-void regression_dump(const oclMat &img, string filename) {
+static void regression_dump(const oclMat &img, string filename) {
     Mat img_;
     img.download(img_);
 
     cv::FileStorage file(filename, cv::FileStorage::WRITE);
     file << "matName" << img_;
 }
+
 void cv::ocl::HOGDescriptor::computeBlockHistograms(const oclMat &img)
 {
     computeGradient(img, this->grad, this->qangle);
@@ -292,7 +294,7 @@ void cv::ocl::HOGDescriptor::computeBlockHistograms(const oclMat &img)
         effect_size.width, grad, qangle, gauss_w_lut, block_hists);
 
     if (configs & 1) {
-        //finish();
+        finish();
         regression_dump(this->grad, "hog_grad.ext");
         regression_dump(this->qangle, "hog_qangle.ext");
         regression_dump(block_hists, "hog_purehists.ext");
@@ -302,7 +304,7 @@ void cv::ocl::HOGDescriptor::computeBlockHistograms(const oclMat &img)
         effect_size.width, block_hists, (float)threshold_L2hys);
 
     if (configs & 1) {
-        //finish();
+        finish();
         regression_dump(block_hists, "hog_normhists.ext");
     }
 }
@@ -1680,14 +1682,13 @@ void cv::ocl::device::hog::compute_hists(int nbins,
     int qangle_step = qangle.step >> qangle_step_shift;
 
     int blocks_in_group = 4;
-#if 1
+
+#ifdef NEW_COMPUTE_HIST
     string kernelName = "compute_hists_lut_kernel_new";
     size_t localThreads[3] = { (size_t)blocks_in_group * 2, 2, 1 };
     size_t globalThreads[3] = {
         divUp(img_block_width * img_block_height, blocks_in_group) * localThreads[0], 2, 1 };
-
-    int final_hists_size = (nbins * CELLS_PER_BLOCK_X * CELLS_PER_BLOCK_Y) * sizeof(float);
-    int smem = final_hists_size * blocks_in_group;
+    (void)(nbins); // skip unreference warning
 #else    
     string kernelName = "compute_hists_lut_kernel";
     size_t localThreads[3] = { (size_t)blocks_in_group * 24, 2, 1 };
@@ -1712,7 +1713,9 @@ void cv::ocl::device::hog::compute_hists(int nbins,
     args.push_back( make_pair( sizeof(cl_mem), (void *)&qangle.data));
     args.push_back( make_pair( sizeof(cl_mem), (void *)&gauss_w_lut.data));
     args.push_back( make_pair( sizeof(cl_mem), (void *)&block_hists.data));
+#ifndef NEW_COMPUTE_HIST    
     args.push_back( make_pair( smem, (void *)NULL));
+#endif
 
     if(hog_device_cpu)
     {
