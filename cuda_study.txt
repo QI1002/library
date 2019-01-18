@@ -1,0 +1,92 @@
+
+[cuda preparation]
+you can select CUDA Toolkit 10.0 Download in this link, but it's nvidia driver 410 not support 635M
+https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&target_distro=Ubuntu&target_version=1804&target_type=runfilelocal
+, so you need to select legacy one, i.e. 
+https://developer.nvidia.com/cuda-91-download-archive?target_os=Linux&target_arch=x86_64&target_distro=Ubuntu&target_version=1704&target_type=runfilelocal
+or 
+https://developer.nvidia.com/cuda-80-ga2-download-archive
+
+The possbile fail reasons are listed as follows:
+1. disable-nouveau-kernel-driver (due to it's incompatible with nvidia driver)
+   https://askubuntu.com/questions/841876/how-to-disable-nouveau-kernel-driver
+   it's important to use "sudo update-initramfs -u" or "sudo update-initramfs -u -k all"
+   to let it work after reboot
+   check it by the command "lshw, lspci or lsmod | grep nouveau"
+2. sometimes, install failure to show the cause from --kernel-source-path
+   , but it's not the real cause because just no nvidia device is detected 
+3. the real reason is that there is no proper nvidia is installed, 
+   check it by the command "/dev/nvidia*" to find /dev/nvidia0" or "lsmod | grep nvidia"
+   or "nvidia-smi" to know which nvidia version you used.
+4. the nvidia driver 410 not support old GPU like 635M, so even you install it, the nvidia
+   device can't be created correctly. You need to use nvidia driver 390 
+   (i.e. sudo apt install nvidia-driver-390) 
+   https://www.nvidia.com.tw/Download/Find.aspx?lang=tw
+5. if you fail to install something, use these commands to remove them clearly
+   sudo apt remove nvidia-driver-410
+   sudo apt-get autoremove
+   if there is no proper nvidia driver, even though you ever disable nouveau driver,
+   it will be forced to enable again. (check it by "lsmod | grep nouveau")
+6. the install dir => /usr/local/cuda
+
+[cuda install 9.0]   
+the install step as follows:
+1. sudo sh cuda_9.1.85_387.26_linux.run
+2. if "Error: unsupported compiler: 7.3.0", it's due to ubuntu use gcc/g++ version 7.30 but it's too new to cuda 9.1
+   you need to downgrade the gcc/g++ version to 6.x version => https://blog.csdn.net/qq_20091945/article/details/80385079
+   sudo apt install gcc-6 g++-6
+   sudo ln -s /usr/bin/gcc-6 /usr/local/bin/gcc
+   sudo ln -s /usr/bin/g++-6 /usr/local/bin/g++
+3. not select to install nvidia driver 387 in the step selection, please 390 shall be ok also 
+4. you need to reboot pc to make all take effect 
+   otherwise you will the error message "cudaGetDeviceCount returned 30 -> unknown error"
+   https://devtalk.nvidia.com/default/topic/1027413/cuda-setup-and-installation/linux-installation-error-cudagetdevicecount-returned-30-gt-unknown-error/
+5. use samples utility ./deviceQuery to check cuda work or not 
+6. error code no kernel image is available for execution on the device ?
+   please refer 635M for the computing ability check 
+   https://developer.nvidia.com/cuda-gpus so 635M support "compute_20/sm_21"
+   cuda 9.1 nvcc only support "compute_30/sm_30" find "--gpu-name"
+   https://docs.nvidia.com/cuda/archive/9.1/cuda-compiler-driver-nvcc/index.html
+   cuda 8.0 nvcc support "compute_20/sm_20" find "--gpu-name"
+   https://docs.nvidia.com/cuda/archive/8.0/cuda-compiler-driver-nvcc/index.html   
+7. how to remove cuda ? 
+   https://askubuntu.com/questions/959835/how-to-remove-cuda-9-0-and-install-cuda-8-0-instead    
+
+[cuda install 8.0]   
+the install step as follows:
+1. sudo sh cuda_8.0.61_375.26_linux.run
+2. if "Error: unsupported compiler: 7.3.0", it's due to ubuntu use gcc/g++ version 7.30 but it's too new to cuda 8.0
+   you need to downgrade the gcc/g++ version to 5.4 or 4.x version
+
+   if you use the next command, you will install 5.5 but it's not ok.
+   so you need to update /etc/apt/sources.list as https://gist.github.com/rohitrawat/60a04e6ebe4a9ec1203eac3a11d4afc1
+   and "sudo apt-get update", then you can install 5.4 from xenial
+   https://stackoverflow.com/questions/49906159/how-to-install-gcc-5-4-on-ubuntu-17-10-downgrade
+   sudo apt install gcc-5 g++-5
+   sudo ln -s /usr/bin/gcc-5 /usr/local/bin/gcc
+   sudo ln -s /usr/bin/g++-5 /usr/local/bin/g++
+
+   sudo apt install gcc-4.8 g++-4.8 
+   sudo ln -s /usr/bin/gcc-4.8 /usr/local/bin/gcc
+   sudo ln -s /usr/bin/g++-4.8 /usr/local/bin/g++
+3. not select to install nvidia driver 387 in the step selection, please 390 shall be ok also 
+4. you need to reboot pc to make all take effect 
+   otherwise you will the error message "cudaGetDeviceCount returned 30 -> unknown error"
+   https://devtalk.nvidia.com/default/topic/1027413/cuda-setup-and-installation/linux-installation-error-cudagetdevicecount-returned-30-gt-unknown-error/
+5. The error message "Can't locate InstallUtils.pm"
+   >> unpack .run file ./cuda*.run --tar mxvf
+   >> copy InstallUtils.pm to /usr/lib/x86_64-linux-gnu/perl-base 
+   >> export $PERL5LIB
+   https://devtalk.nvidia.com/default/topic/983777/cuda-setup-and-installation/can-t-locate-installutils-pm-in-inc/ 
+6. use samples utility ./deviceQuery to check cuda work or not
+
+[opencl install]
+1. to make libOpenCL work by these commands 
+   /usr/lib/x86_64-linux-gnu$ sudo ln -s /usr/local/cuda/lib64/libOpenCL.so .
+2. download all of openCL nvidia samples from 
+https://developer.nvidia.com/cuda-toolkit-42-archive by the link 
+http://developer.download.nvidia.com/compute/cuda/4_2/rel/sdk/gpucomputingsdk_4.2.9_linux.run
+and sh ./gpucomputingsdk_4.2.9_linux.run
+3. use samples to test openCL ok
+   cd ./OpenCL/bin/linux/release/ && ./oclDeviceQuery
+   cd ./OpenCL/bin/linux/release/ && ./oclVectorAdd

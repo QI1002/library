@@ -81,9 +81,9 @@ E. Give a example of 128x416
         divUp(img_block_width * img_block_height, blocks_in_group) * localThreads[0], 2, 1 }; 
         // divUP(765, 4)*96 = 192*96, 2, 1  
 
-    int hists_size = (nbins * CELLS_PER_BLOCK_X * CELLS_PER_BLOCK_Y * 12) * sizeof(float);
-    int final_hists_size = (nbins * CELLS_PER_BLOCK_X * CELLS_PER_BLOCK_Y) * sizeof(float);
-    int smem = (hists_size + final_hists_size) * blocks_in_group;
+    int hists_size = (nbins * CELLS_PER_BLOCK_X * CELLS_PER_BLOCK_Y * 12) * sizeof(float);  // 9*2*2*12
+    int final_hists_size = (nbins * CELLS_PER_BLOCK_X * CELLS_PER_BLOCK_Y) * sizeof(float); // 9*2*2
+    int smem = (hists_size + final_hists_size) * blocks_in_group; // 9*2*2*13*4 
 
 ==============================================
 
@@ -239,15 +239,23 @@ F. what performance optimzation
       we can avoid one more multiple and to calculate dist_x, dist_y, dist_center_x, dist_center_y
    2) HISTOGRAM_SIMPLIFY_ALU: 
       use opencl vector type to speed up, for example float8 a, c; a.s01 = b * c.s01
-   3) use private memory > local memory > private memory 
+   3) use private memory > local memory > private memory (100:10:1)
+      we always think the difference between global/local but we shall think the difference between local/private 
       but avoid register spilling 
    4) use texture/buffer to replace local memory transfer between kernels ?
       or avoid boundary data getting ? 
       const sampler_t _samplerImg = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;
       CLK_ADDRESS_CLAMP: clamp to border color (i.e. 0,0,0 or 0,0,0,1) or CLK_ADDRESS_CLAMP_TO_EDGE 
-   5) use one concat kernel by many kernel 
+   5) use one concat kernel by many kernel to reduce global memory access 
    6) use proper type or use large type to packed multiple data 
       ushort4 bin_tmp  = convert_ushort4(read_imageui(qangle, _samplerImg, (int2)((x>>1), y)));
       uchar8  bin_vec  = as_uchar8(bin_tmp);
+      use the new layout sum? if no coeff multiple. 12x12 cells to become 3x3 (16x16) cells. 
    7) DETECT_ALL_LAYERS
-      -use clFinish() ? reorder the flow ex: getPyramid ? and seperate all CPU and GPU tasks ?  
+      -use clFinish() ? reorder the flow ex: getPyramid ? and seperate all CPU and GPU tasks ?
+   8) use some memory to reduce if checking for boundary, for norm_hists NTHREADS = 256 but not 252 
+   9) think it's better to let local group number to be the number of processing units   
+      but what you shall put it ? use 12 cell x or increase the group of blocks ? (4 to 64?) 
+  10) use more hardcode , ex: 54 or 6*cnbins , and change the resolution to let more parrellism
+  11) 
+  11) 

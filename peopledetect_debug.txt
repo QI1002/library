@@ -390,3 +390,23 @@ Thread 1 "ocl-example-peo" hit Breakpoint 7, cv::groupRectangles (
 $36 = 5
 (gdb) 
 
+Thread 1 "ocl-example-peo" hit Breakpoint 4, cv::ocl::device::hog::compute_gradients_8UC4 (height=128, width=416, img=..., 
+    angle_scale=2.86478901, grad=..., qangle=..., correct_gamma=true) at /home/qi/github/library/opencv-2.4.13.6/modules/ocl/src/hog.cpp:1994
+1994	    int grad_quadstep = grad.step >> 3;
+(gdb) print grad.step
+$1 = 3328
+(gdb) print qangle.step
+$2 = 832
+(gdb) 3328/416
+Undefined command: "3328".  Try "help".
+(gdb) print 3328/416
+$3 = 8
+(gdb) next
+1995	    int qangle_step = qangle.step >> (1 + qangle_step_shift);
+(gdb) next
+1997	    args.push_back( make_pair( sizeof(cl_int), (void *)&height));
+(gdb) print grad_quadstep
+$4 = 416
+(gdb) print qangle_step
+$5 = 416
+
