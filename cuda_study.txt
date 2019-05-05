@@ -90,3 +90,23 @@ and sh ./gpucomputingsdk_4.2.9_linux.run
 3. use samples to test openCL ok
    cd ./OpenCL/bin/linux/release/ && ./oclDeviceQuery
    cd ./OpenCL/bin/linux/release/ && ./oclVectorAdd
+
+[study] 
+https://devblogs.nvidia.com/even-easier-introduction-cuda/
+    https://devblogs.nvidia.com/how-implement-performance-metrics-cuda-cc/
+        https://devblogs.nvidia.com/six-ways-saxpy/
+            https://devblogs.nvidia.com/openacc-directives-gpus/
+    https://devblogs.nvidia.com/how-query-device-properties-and-handle-errors-cuda-cc/
+    https://devblogs.nvidia.com/how-optimize-data-transfers-cuda-cc/
+    https://devblogs.nvidia.com/how-overlap-data-transfers-cuda-cc/
+        https://devblogs.nvidia.com/gpu-pro-tip-cuda-7-streams-simplify-concurrency/
+    https://devblogs.nvidia.com/how-access-global-memory-efficiently-cuda-c-kernels/
+    https://devblogs.nvidia.com/using-shared-memory-cuda-cc/
+    https://devblogs.nvidia.com/unified-memory-cuda-beginners/
+        https://devblogs.nvidia.com/beyond-gpu-memory-limits-unified-memory-pascal/ (not yet)
+    https://devblogs.nvidia.com/inside-pascal/ (TODO)
+    https://devblogs.nvidia.com/cuda-pro-tip-write-flexible-kernels-grid-stride-loops/
+        https://devblogs.nvidia.com/simple-portable-parallel-c-hemi-2/
+
+https://github.com/NVIDIA-developer-blog/code-samples/tree/master/series/cuda-cpp
+https://tw.iqiyi.com/v_19rrmjuqjo.html
