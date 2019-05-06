@@ -87,7 +87,8 @@ the install step as follows:
 https://developer.nvidia.com/cuda-toolkit-42-archive by the link 
 http://developer.download.nvidia.com/compute/cuda/4_2/rel/sdk/gpucomputingsdk_4.2.9_linux.run
 and sh ./gpucomputingsdk_4.2.9_linux.run
-3. use samples to test openCL ok
+3. unpack .run file gpucomputingsdk_4.2.9_linux.run --tar mxvf  
+4. use samples to test openCL ok
    cd ./OpenCL/bin/linux/release/ && ./oclDeviceQuery
    cd ./OpenCL/bin/linux/release/ && ./oclVectorAdd
 
