@@ -183,9 +183,8 @@ ifneq ($(TARGET_ARCH),$(HOST_ARCH))
 endif
 
 # Debug build flags
-dbg := 1
 ifeq ($(dbg),1)
-      NVCCFLAGS += -g -G --resource-usage
+      NVCCFLAGS += -g -G
       BUILD_TYPE := debug
 else
       BUILD_TYPE := release
