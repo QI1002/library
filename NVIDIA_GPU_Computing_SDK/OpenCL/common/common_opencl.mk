@@ -170,11 +170,11 @@ ifeq ($(USEGLLIB),1)
 		OPENGLLIB := -L/System/Library/Frameworks/OpenGL.framework/Libraries -lGL -lGLU $(SHAREDDIR)/lib/$(OSLOWER)/libGLEW.a
 	else
 		OPENGLLIB := -lGL -lGLU -lX11 -lXmu
-		ifeq "$(strip $(HP_64))" ""
+		#ifeq "$(strip $(HP_64))" ""
 			OPENGLLIB += -lGLEW -L/usr/X11R6/lib
-		else
-			OPENGLLIB += -lGLEW_x86_64 -L/usr/X11R6/lib64
-		endif
+		#else
+		#	OPENGLLIB += -lGLEW_x86_64 -L/usr/X11R6/lib64
+		#endif
 	endif
 
 	CUBIN_ARCH_FLAG := -m64
@@ -194,7 +194,8 @@ ifneq ($(DARWIN),)
    LIB       := -L${OCLLIBDIR} -L$(LIBDIR) -L$(SHAREDDIR)/lib/$(OSLOWER) 
    LIB += -framework OpenCL -framework OpenGL ${OPENGLLIB} -framework AppKit ${ATF} ${LIB} 
 else
-   LIB       := ${USRLIBDIR} -L${OCLLIBDIR} -L$(LIBDIR) -L$(SHAREDDIR)/lib/$(OSLOWER) 
+   LIB       := ${USRLIBDIR} -L${OCLLIBDIR} -L$(LIBDIR)
+   #LIB       := ${USRLIBDIR} -L${OCLLIBDIR} -L$(LIBDIR) -L$(SHAREDDIR)/lib/$(OSLOWER) 
    LIB += -lOpenCL ${OPENGLLIB} ${LIB} 
 endif
 

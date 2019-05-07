@@ -92,6 +92,23 @@ and sh ./gpucomputingsdk_4.2.9_linux.run
    cd ./OpenCL/bin/linux/release/ && ./oclDeviceQuery
    cd ./OpenCL/bin/linux/release/ && ./oclVectorAdd
 
+[opengl install]
+1. goto /usr/lib/x86_64-linux-gnu
+2.sudo apt-get install freeglut3 
+3. create symbol link
+  sudo ln -s libGL.so.1 libGL.so
+  sudo ln -s libGLX.so.1 libGLX.so
+  sudo ln -s libGLU.so.1 libGLU.so
+  sudo ln -s libXmu.so.6 libXmu.so
+  sudo ln -s libglut.so.3 libglut.so
+4. create include file symbol link
+  sudo ln -s /usr/local/cuda-8.0/extras/CUPTI/include/GL/*.h .
+5. fix glew error ? 
+  g++ -shared -fPIC -Wl,--whole-archive -o libGLEW_x86_64_.so -L. -lGLEW_x86_64 (no work)
+  sudo apt-get install libglew2.0
+  goto /usr/lib/x86_64-linux-gnu
+  sudo ln -s libGLEW.so.2.0 libGLEW.so
+
 [study] 
 https://devblogs.nvidia.com/even-easier-introduction-cuda/
     https://devblogs.nvidia.com/how-implement-performance-metrics-cuda-cc/
