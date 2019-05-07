@@ -37,7 +37,7 @@
 EXECUTABLE	:= MonteCarloMultiGPU
 
 # CUDA source files (compiled with cudacc)
-CUFILES_sm_10 := MonteCarlo_kernel.cu
+CUFILES_sm_20 := MonteCarlo_kernel.cu
 
 GENCODE_ARCH    := -gencode=arch=compute_10,code=sm_10 -gencode=arch=compute_20,code=sm_20
 

@@ -354,12 +354,14 @@ void renderImage(bool bUseOpenGL)
 
 				// Run the mandelbrot generator
 				if (!haveDoubles) {
+#if 0					
 					if (pass && !startPass) // Use the adaptive sampling version when animating.
 						RunMandelbrot1_sm11(d_dst, imageW, imageH, crunch, x, y, 
 						xJParam, yJParam, s, colors, pass++, animationFrame, precisionMode, numSMs, g_isJuliaSet);
 					else
 						RunMandelbrot0_sm11(d_dst, imageW, imageH, crunch, x, y, 
 						xJParam, yJParam, s, colors, pass++, animationFrame, precisionMode, numSMs, g_isJuliaSet);
+#endif					
 				} else {
 					if (pass && !startPass) // Use the adaptive sampling version when animating.
 						RunMandelbrot1_sm13(d_dst, imageW, imageH, crunch, x, y, 

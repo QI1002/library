@@ -21,7 +21,8 @@
 .SUFFIXES : .cu .cu_dbg.o .c_dbg.o .cpp_dbg.o .cu_rel.o .c_rel.o .cpp_rel.o .cubin .ptx
 
 # Add new SM Versions here as devices with new Compute Capability are released
-SM_VERSIONS   := 10 11 12 13 20 21 30
+#SM_VERSIONS   := 10 11 12 13 20 21 30
+SM_VERSIONS   := 20 21 30
 
 CUDA_INSTALL_PATH ?= /usr/local/cuda
 
@@ -135,7 +136,7 @@ else
 endif
 
 # Compiler-specific flags (by default, we always use sm_10, sm_20, and sm_30), unless we use the SMVERSION template
-GENCODE_SM10 := -gencode=arch=compute_10,code=\"sm_10,compute_10\"
+#GENCODE_SM10 := -gencode=arch=compute_10,code=\"sm_10,compute_10\"
 GENCODE_SM20 := -gencode=arch=compute_20,code=\"sm_20,compute_20\"
 GENCODE_SM30 := -gencode=arch=compute_30,code=\"sm_30,compute_30\"
 
@@ -192,11 +193,11 @@ ifeq ($(USEGLLIB),1)
 	       OPENGLLIB += -lGLEW_x86_64 -L/usr/X11R6/lib64
         else
              ifeq ($(i386),)
-                 ifeq "$(strip $(HP_64))" ""
+                 #ifeq "$(strip $(HP_64))" ""
 	             OPENGLLIB += -lGLEW -L/usr/X11R6/lib
-                 else
-	             OPENGLLIB += -lGLEW_x86_64 -L/usr/X11R6/lib64
-                 endif
+                 #else
+	         #    OPENGLLIB += -lGLEW_x86_64 -L/usr/X11R6/lib64
+                 #endif
              endif
         endif
 # check if i386 flag has been set, otehrwise check HP_64 is i386/x86_64
@@ -204,11 +205,11 @@ ifeq ($(USEGLLIB),1)
 	       OPENGLLIB += -lGLEW -L/usr/X11R6/lib
         else
              ifeq ($(x86_64),)
-                 ifeq "$(strip $(HP_64))" ""
+                 #ifeq "$(strip $(HP_64))" ""
 	             OPENGLLIB += -lGLEW -L/usr/X11R6/lib
-                 else
-	             OPENGLLIB += -lGLEW_x86_64 -L/usr/X11R6/lib64
-                 endif
+                 #else
+	         #    OPENGLLIB += -lGLEW_x86_64 -L/usr/X11R6/lib64
+                 #endif
              endif
         endif
     endif
@@ -261,7 +262,8 @@ else
     ifeq ($(i386),1)
        LIB       := -L$(CUDA_INSTALL_PATH)/lib -L$(LIBDIR) -L$(COMMONDIR)/lib/$(OSLOWER) -L$(SHAREDDIR)/lib
     else
-       LIB       := -L$(CUDA_INSTALL_PATH)/lib64 -L$(LIBDIR) -L$(COMMONDIR)/lib/$(OSLOWER) -L$(SHAREDDIR)/lib
+       #LIB       := -L$(CUDA_INSTALL_PATH)/lib64 -L$(LIBDIR) -L$(COMMONDIR)/lib/$(OSLOWER) -L$(SHAREDDIR)/lib
+       LIB       := -L$(CUDA_INSTALL_PATH)/lib64 -L$(LIBDIR) -L$(SHAREDDIR)/lib
     endif
   endif
 endif
@@ -279,7 +281,8 @@ else
      else 
          LIB += -lcudart
      endif
-     LIB += ${OPENGLLIB} $(PARAMGLLIB) $(RENDERCHECKGLLIB) ${LIB}
+     #LIB += ${OPENGLLIB} $(PARAMGLLIB) $(RENDERCHECKGLLIB) ${LIB}
+     LIB += $(RENDERCHECKGLLIB) ${LIB} ${OPENGLLIB} $(PARAMGLLIB)
   endif
 endif
 

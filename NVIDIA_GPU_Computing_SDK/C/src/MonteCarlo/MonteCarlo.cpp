@@ -159,8 +159,8 @@ int main(int argc, char **argv)
     printf("Generating normally distributed samples...\n");
     if(useDoublePrecision)
         inverseCND_SM13(plan.d_Samples, NULL, PATH_N);
-    else
-        inverseCND_SM10(plan.d_Samples, NULL, PATH_N);
+    //else
+    //    inverseCND_SM10(plan.d_Samples, NULL, PATH_N);
 
     if( cutCheckCmdLineFlag( argc, (const char**)argv, "shmoo") ){
         printf("Doing shmoo run\n");
@@ -182,16 +182,16 @@ int main(int argc, char **argv)
                 plan.pathN = path;
                 if(useDoublePrecision)
                     initMonteCarlo_SM13(&plan);
-                else
-                    initMonteCarlo_SM10(&plan);
+                //else
+                //    initMonteCarlo_SM10(&plan);
 
                 cutilSafeCall( cutilDeviceSynchronize() );
                 cutilCheckError( cutResetTimer(hTimer) );
                 cutilCheckError( cutStartTimer(hTimer) );
                 if(useDoublePrecision)
                     MonteCarlo_SM13(&plan);
-                else
-                    MonteCarlo_SM10(&plan);
+                //else
+                //    MonteCarlo_SM10(&plan);
 
                 cutilSafeCall( cutilDeviceSynchronize() );
                 cutilCheckError( cutStopTimer(hTimer) );
@@ -199,8 +199,8 @@ int main(int argc, char **argv)
 
                 if(useDoublePrecision)
                     closeMonteCarlo_SM13(&plan);
-                else
-                    closeMonteCarlo_SM10(&plan);
+                //else
+                //    closeMonteCarlo_SM10(&plan);
             }
         }
 
@@ -230,23 +230,23 @@ int main(int argc, char **argv)
         plan.pathN = PATH_N;
         if(useDoublePrecision)
             initMonteCarlo_SM13(&plan);
-        else
-            initMonteCarlo_SM10(&plan);
+        //else
+        //    initMonteCarlo_SM10(&plan);
 
         cutilSafeCall( cutilDeviceSynchronize() );
         cutilCheckError( cutResetTimer(hTimer) );
         cutilCheckError( cutStartTimer(hTimer) );
         if(useDoublePrecision)
             MonteCarlo_SM13(&plan);
-        else
-            MonteCarlo_SM10(&plan);
+        //else
+        //    MonteCarlo_SM10(&plan);
         cutilSafeCall( cutilDeviceSynchronize() );
         cutilCheckError( cutStopTimer(hTimer) );
         gpuTime = cutGetTimerValue(hTimer);
         if(useDoublePrecision)
             closeMonteCarlo_SM13(&plan);
-        else
-            closeMonteCarlo_SM10(&plan);
+        //else
+        //    closeMonteCarlo_SM10(&plan);
 
         printf("Time (ms.)      : %f\n", gpuTime);
         printf("GPU options per sec.: %f\n", OPT_N / (gpuTime * 0.001));

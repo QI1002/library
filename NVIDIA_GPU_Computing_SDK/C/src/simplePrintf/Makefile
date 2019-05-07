@@ -36,7 +36,7 @@
 # Add source files here
 EXECUTABLE	:= simplePrintf
 # Cuda source files (compiled with cudacc)
-CUFILES_sm_10	:= simplePrintf.cu
+CUFILES_sm_20	:= simplePrintf.cu
 CUDEPS			:= cuPrintf.cu
 # C/C++ source files (compiled with gcc / c++)
 CCFILES		:= \

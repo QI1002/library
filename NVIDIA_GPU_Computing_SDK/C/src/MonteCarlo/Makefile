@@ -38,7 +38,7 @@ EXECUTABLE	:= MonteCarlo
 
 # CUDA source files (compiled with cudacc)
 CUFILES_sm_10 := MonteCarlo_SM10.cu
-CUFILES_sm_13 := MonteCarlo_SM13.cu
+CUFILES_sm_20 := MonteCarlo_SM20.cu
 
 # CUDA dependency files
 CU_DEPS		:= \

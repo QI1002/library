@@ -37,7 +37,7 @@
 EXECUTABLE	:= Mandelbrot
 # Cuda source files (compiled with cudacc)
 CUFILES_sm_11	:= Mandelbrot_sm11.cu
-CUFILES_sm_13   := Mandelbrot_sm13.cu
+CUFILES_sm_20   := Mandelbrot_sm20.cu
 CCFILES		:= Mandelbrot.cpp Mandelbrot_gold.cpp
 
 # Additional compiler flags and LIBs to include

@@ -36,7 +36,7 @@
 # Add source files here
 EXECUTABLE	:= Interval
 # CUDA source files (compiled with cudacc)
-CUFILES_sm_13	:= interval.cu
+CUFILES_sm_20	:= interval.cu
 
 # add command line parameters so we can target multiple architectures
 GENCODE_ARCH    := -gencode=arch=compute_20,code=sm_20

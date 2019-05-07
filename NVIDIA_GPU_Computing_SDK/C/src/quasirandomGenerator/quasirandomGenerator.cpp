@@ -122,8 +122,8 @@ int main(int argc, char **argv)
         initQuasirandomGenerator(tableCPU);
         if(useDoublePrecision)
             initTable_SM13(tableCPU);
-        else
-            initTable_SM10(tableCPU);
+        //else
+        //    initTable_SM10(tableCPU);
 
     shrLog("Testing QRNG...\n\n");
         cutilSafeCall( cudaMemset(d_Output, 0, QRNG_DIMENSIONS * N * sizeof(float)) );
@@ -138,8 +138,8 @@ int main(int argc, char **argv)
 			}
             if(useDoublePrecision)
                 quasirandomGenerator_SM13(d_Output, 0, N);
-            else
-                quasirandomGenerator_SM10(d_Output, 0, N);
+            //else
+            //    quasirandomGenerator_SM10(d_Output, 0, N);
 		}
         cutilSafeCall( cutilDeviceSynchronize() );
         cutilCheckError(cutStopTimer(hTimer));
@@ -174,8 +174,8 @@ int main(int argc, char **argv)
 			}
             if(useDoublePrecision)
                 inverseCND_SM13(d_Output, NULL, QRNG_DIMENSIONS * N);
-            else
-                inverseCND_SM10(d_Output, NULL, QRNG_DIMENSIONS * N);
+            //else
+            //    inverseCND_SM10(d_Output, NULL, QRNG_DIMENSIONS * N);
 		}
         cutilSafeCall( cutilDeviceSynchronize() );
         cutilCheckError(cutStopTimer(hTimer));

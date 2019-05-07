@@ -153,8 +153,8 @@ int main(int argc, char **argv){
 
         if(useDoublePrecision)
             binomialOptions_SM13(callValueGPU, optionData, OPT_N);
-        else
-            binomialOptions_SM10(callValueGPU, optionData, OPT_N);
+        //else
+        //    binomialOptions_SM10(callValueGPU, optionData, OPT_N);
 
         cutilSafeCall( cutilDeviceSynchronize() );
         cutilCheckError( cutStopTimer(hTimer) );

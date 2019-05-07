@@ -36,7 +36,7 @@
 # Add source files here
 EXECUTABLE	:= segmentationTreeThrust
 # CUDA source files (compiled with cudacc)
-CUFILES_sm_13 := segmentationTree.cu
+CUFILES_sm_20 := segmentationTree.cu
 # CUDA dependency files
 CU_DEPS		:= kernels.cu common.cuh
 # C/C++ source files (compiled with gcc / c++)
