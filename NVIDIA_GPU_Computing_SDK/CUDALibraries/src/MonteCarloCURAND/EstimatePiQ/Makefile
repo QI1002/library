@@ -46,7 +46,7 @@ INCLUDES    += -Iinc/ -I../inc/
 ROOTDIR     := ../..
 USECURAND   := 1
 # Add sm_13 and sm_20 to build for double precision support
-GENCODE_ARCH := -gencode=arch=compute_13,code=\"sm_13,compute_13\" -gencode=arch=compute_20,code=\"sm_20,compute_20\"
+GENCODE_ARCH := -gencode=arch=compute_20,code=\"sm_20,compute_20\"
 
 ################################################################################
 # Rules and targets

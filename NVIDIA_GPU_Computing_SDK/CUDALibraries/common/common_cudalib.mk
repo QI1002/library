@@ -21,7 +21,8 @@
 .SUFFIXES : .cu .cu_dbg.o .c_dbg.o .cpp_dbg.o .cu_rel.o .c_rel.o .cpp_rel.o .cubin .ptx
 
 # Add new SM Versions here as devices with new Compute Capability are released
-SM_VERSIONS   := 10 11 12 13 20 21 30
+#SM_VERSIONS   := 10 11 12 13 20 21 30
+SM_VERSIONS   := 20 21 30
 
 CUDA_INSTALL_PATH ?= /usr/local/cuda
 
@@ -157,7 +158,7 @@ ifneq ($(DARWIN),)
 endif
 
 # Compiler-specific flags (by default, we always use sm_10, sm_20, and sm_30), unless we use the SMVERSION template
-GENCODE_SM10 := -gencode=arch=compute_10,code=\"sm_10,compute_10\"
+#GENCODE_SM10 := -gencode=arch=compute_10,code=\"sm_10,compute_10\"
 GENCODE_SM20 := -gencode=arch=compute_20,code=\"sm_20,compute_20\"
 GENCODE_SM30 := -gencode=arch=compute_30,code=\"sm_30,compute_30\"
 
@@ -207,11 +208,11 @@ ifeq ($(USEGLLIB),1)
 	       OPENGLLIB += -lGLEW_x86_64 -L/usr/X11R6/lib64
         else
              ifeq ($(i386),)
-                 ifeq "$(strip $(HP_64))" ""
+                 #ifeq "$(strip $(HP_64))" ""
 	             OPENGLLIB += -lGLEW -L/usr/X11R6/lib
-                 else
-	             OPENGLLIB += -lGLEW_x86_64 -L/usr/X11R6/lib64
-                 endif
+                 #else
+	         #    OPENGLLIB += -lGLEW_x86_64 -L/usr/X11R6/lib64
+                 #endif
              endif
         endif
 # check if i386 flag has been set, otehrwise check HP_64 is i386/x86_64
@@ -219,11 +220,11 @@ ifeq ($(USEGLLIB),1)
 	       OPENGLLIB += -lGLEW -L/usr/X11R6/lib
         else
              ifeq ($(x86_64),)
-                 ifeq "$(strip $(HP_64))" ""
+                 #ifeq "$(strip $(HP_64))" ""
 	             OPENGLLIB += -lGLEW -L/usr/X11R6/lib
-                 else
-	             OPENGLLIB += -lGLEW_x86_64 -L/usr/X11R6/lib64
-                 endif
+                 #else
+	         #    OPENGLLIB += -lGLEW_x86_64 -L/usr/X11R6/lib64
+                 #endif
              endif
         endif
     endif
@@ -282,22 +283,10 @@ else
     endif
   endif
 endif
-LIB += -L$(LIBDIR) -L$(COMMONDIR)/lib -L$(SHAREDDIR)/lib -L$(SHAREDDIR)/lib/$(OSLOWER)
+#LIB += -L$(LIBDIR) -L$(COMMONDIR)/lib -L$(SHAREDDIR)/lib -L$(SHAREDDIR)/lib/$(OSLOWER)
+LIB += -L$(LIBDIR) -L$(COMMONDIR)/lib -L$(SHAREDDIR)/lib
 ifeq ($(USENVCUVID), 1)
   LIB += -L$(NVCUVIDLIB)
-endif
-
-# If dynamically linking to CUDA and CUDART, we exclude the libraries from the LIB
-ifeq ($(USECUDADYNLIB),1)
-     LIB += ${OPENGLLIB} $(PARAMGLLIB) $(RENDERCHECKGLLIB) $(CUDPPLIB) ${LIB} -ldl -rdynamic 
-else
-# static linking, we will statically link against CUDA and CUDART
-  ifeq ($(USEDRVAPI),1)
-     LIB += -lcuda   ${OPENGLLIB} $(PARAMGLLIB) $(RENDERCHECKGLLIB) $(CUDPPLIB) ${LIB} 
-  else
-     LIB += -lcudart
-     LIB += ${OPENGLLIB} $(PARAMGLLIB) $(RENDERCHECKGLLIB) $(CUDPPLIB) ${LIB}
-  endif
 endif
 
 ifeq ($(USECUFFT),1)
@@ -343,6 +332,19 @@ else
 	TARGETDIR := $(BINDIR)/$(BINSUBDIR)
 	TARGET    := $(TARGETDIR)/$(EXECUTABLE)
 	LINKLINE  = $(LINK) -o $(TARGET) $(OBJS) $(LIB)
+endif
+
+# If dynamically linking to CUDA and CUDART, we exclude the libraries from the LIB
+ifeq ($(USECUDADYNLIB),1)
+     LIB += ${OPENGLLIB} $(PARAMGLLIB) $(RENDERCHECKGLLIB) $(CUDPPLIB) ${LIB} -ldl -rdynamic 
+else
+# static linking, we will statically link against CUDA and CUDART
+  ifeq ($(USEDRVAPI),1)
+     LIB += -lcuda   ${OPENGLLIB} $(PARAMGLLIB) $(RENDERCHECKGLLIB) $(CUDPPLIB) ${LIB} 
+  else
+     LIB += -lcudart
+     LIB += ${OPENGLLIB} $(PARAMGLLIB) $(RENDERCHECKGLLIB) $(CUDPPLIB) ${LIB}
+  endif
 endif
 
 # check if verbose 
