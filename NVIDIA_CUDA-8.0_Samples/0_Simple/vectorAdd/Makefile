@@ -183,8 +183,11 @@ ifneq ($(TARGET_ARCH),$(HOST_ARCH))
 endif
 
 # Debug build flags
+#dbg := 1
 ifeq ($(dbg),1)
       NVCCFLAGS += -g -G
+      #NVCCFLAGS += -g -G --cubin --resource-usage
+      #NVCCFLAGS += -g -G --resource-usage
       BUILD_TYPE := debug
 else
       BUILD_TYPE := release
@@ -211,6 +214,7 @@ LIBRARIES :=
 
 # Gencode arguments
 SMS ?= 20 30 35 37 50 52 60
+#SMS ?= 20
 
 ifeq ($(SMS),)
 $(info >>> WARNING - no SM architectures have been specified - waiving sample <<<)
@@ -225,6 +229,7 @@ $(foreach sm,$(SMS),$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_
 HIGHEST_SM := $(lastword $(sort $(SMS)))
 ifneq ($(HIGHEST_SM),)
 GENCODE_FLAGS += -gencode arch=compute_$(HIGHEST_SM),code=compute_$(HIGHEST_SM)
+#GENCODE_FLAGS += -gencode arch=compute_$(HIGHEST_SM),code=compute_$(HIGHEST_SM)
 endif
 endif
 
