@@ -1,5 +1,11 @@
+openCL
+https://blog.csdn.net/chengyq116/article/details/107241379
+
+https://github.com/opencv/opencv/blob/2.4/modules/ocl/src/opencl/objdetect_hog.cl
+
 [openCV API]
 https://docs.opencv.org/ref/2.4/d3/d63/classcv_1_1Mat.html
+image format (CV_8UC2, CV_32FC2 ....) => https://blog.csdn.net/qq_29540745/article/details/52487832
 
 [OCL peopledetect study]
 A. http://mccormickml.com/2013/05/09/hog-person-detector-tutorial/
@@ -12,26 +18,26 @@ tabfind ../../../objdetect/include/opencv2/objdetect/objdetect.hpp
 tabfind ../../include/opencv2/ocl/ocl.hpp
 tabfind ../../../../samples/ocl/peopledetect.cpp
 C. 4 major kernels => compute_gradient : compute_hists : normalize_hists : classify_hists
-   window : 64x128 so detector size = 7x15x4x9  
-   group of block => 2x2 block 
+   window : 64x128 so detector size = 7x15x4x9
+   group of block => 2x2 block
    block: size=16x16, stride=8x8
    cell: size=12x12, stride=4x4 (i.e. (0,0), (0,4), (4,0), (4,4))
    per cell has 9 bins (0~180: 10:30:50:70:90:110:130:150:170)
-   
+
    1) threhold in normalize    => elem = min(elem, threshold);
-   2) threhold in classify     => labels[gidY * img_win_width + gidX] = (product + free_coef >= threshold);   
+   2) threhold in classify     => labels[gidY * img_win_width + gidX] = (product + free_coef >= threshold);
    3) threhold in group labels => groupRectangles(found_locations, group_threshold, 0.2);
 
-   in smem allocation in compute_hists 
+   in smem allocation in compute_hists
    group of block => block => bins => 4 cells => (width = 12)
 
    gaussian table from interp_weight
-   cellx = 0, 1 => dist_x: (-4, 8),(-8, 4)
-                   dist_center_x: (-8, 4),(-4, 8) => (0, 12),(4, 12)
-   celly = 0, 1 => dist_y: (-4, 8),(-8, 4)
-                   dist_center_y: (-8, 4),(-4, 8) => (0, 12),(4, 12)
+   cellx = 0, 1 => dist_x: (-4..7),(-8..3)
+                   dist_center_x: (-8..3),(-4..7) => (0..11),(4..15)
+   celly = 0, 1 => dist_y: (-4..7),(-8..3)
+                   dist_center_y: (-8..3),(-4..7) => (0..11),(4..15)
 D. there are 3 potential defects
-   1) in compute_hists 
+   1) in compute_hists
     const int dist_y_begin = -4 - 4 * lidY;
     for (int dist_y = dist_y_begin; dist_y < dist_y_begin + 12; ++dist_y)
     {
@@ -40,11 +46,11 @@ D. there are 3 potential defects
 
         grad_ptr += grad_quadstep; => shall be grad_quadstep*2
         qangle_ptr += qangle_step; => shall be qangle_step*2
-   2) in compute hists 
+   2) in compute hists
         hist[bin.x * 48] += gaussian * interp_weight * vote.x;
         hist[bin.y * 48] += gaussian * interp_weight * vote.y;
-      its better to use atomic increase ? 
-   3) in classify_hists 
+      its better to use atomic increase ?
+   3) in classify_hists
     if (tid < 32)
     {
         smem[tid] = product = product + smem[tid + 32];
@@ -53,7 +59,7 @@ D. there are 3 potential defects
         smem[tid] = product = product + smem[tid + 4];
         smem[tid] = product = product + smem[tid + 2];
     }
-E. Give a example of 128x416 
+E. Give a example of 128x416
 
     qangle_type = CV_8UC2;
     qangle_step_shift = 0;
@@ -72,18 +78,18 @@ E. Give a example of 128x416
         / block_stride_y; // (128 - 2*8 + 8)/8 = 15 (0,8,...,112)
     int blocks_total = img_block_width * img_block_height; // 51*15 = 765
 
-    int grad_quadstep = grad.step >> 2; // 32bits float pair, >> 2 means 32bits so it's byte step 
+    int grad_quadstep = grad.step >> 2; // 32bits float pair, >> 2 means 32bits so it's byte step
     int qangle_step = qangle.step >> qangle_step_shift;// 8bits uchar pair, >> 0 mean 8bits so it's byte step
 
-    int blocks_in_group = 4;
-    size_t localThreads[3] = { (size_t)blocks_in_group * 24, 2, 1 }; // 96, 2, 1 for 4 blocks for 12 cell x per 2x2 cells  
+    int blocks_in_group = 4;  // handle 4 groups in one local thread, 24=2(cellx)*12(cell size)
+    size_t localThreads[3] = { (size_t)blocks_in_group * 24, 2, 1 }; // 96, 2, 1 for 4 blocks for 12 cell x per 2x2 cells  (celly = get_local_id(1))
     size_t globalThreads[3] = {
-        divUp(img_block_width * img_block_height, blocks_in_group) * localThreads[0], 2, 1 }; 
-        // divUP(765, 4)*96 = 192*96, 2, 1  
+        divUp(img_block_width * img_block_height, blocks_in_group) * localThreads[0], 2, 1 };
+        // divUP(765, 4)*96 = 192*96, 2, 1
 
     int hists_size = (nbins * CELLS_PER_BLOCK_X * CELLS_PER_BLOCK_Y * 12) * sizeof(float);  // 9*2*2*12
     int final_hists_size = (nbins * CELLS_PER_BLOCK_X * CELLS_PER_BLOCK_Y) * sizeof(float); // 9*2*2
-    int smem = (hists_size + final_hists_size) * blocks_in_group; // 9*2*2*13*4 
+    int smem = (hists_size + final_hists_size) * blocks_in_group; // 9*2*2*13*4
 
 ==============================================
 
@@ -93,6 +99,8 @@ E. Give a example of 128x416
 #define CELLS_PER_BLOCK_Y 2
 #define NTHREADS 256
 
+#define QANGLE_TYPE		char
+
 __kernel void compute_hists_lut_kernel(
     const int cblock_stride_x, const int cblock_stride_y,  // 8, 8
     const int cnbins, const int cblock_hist_size, const int img_block_width, // 9, 36, 51
@@ -100,13 +108,13 @@ __kernel void compute_hists_lut_kernel(
     const int grad_quadstep, const int qangle_step,
     __global const float* grad, __global const QANGLE_TYPE* qangle,
     __global const float* gauss_w_lut,
-    __global float* block_hists, 
+    __global float* block_hists,
     __local float* smem)
 {
-    const int lx = get_local_id(0); // 0 .. 95 
+    const int lx = get_local_id(0); // 0 .. 95
     const int lp = lx / 24; /* local group id */ // 0..3 block id in group
-    const int gid = get_group_id(0) * blocks_in_group + lp;/* global group id */ // 765 < 192*4 and 0 .. 3 
-    const int gidY = gid / img_block_width; // 0..14 
+    const int gid = get_group_id(0) * blocks_in_group + lp;/* global group id */ // 765 < 192*4 and 0 .. 3
+    const int gidY = gid / img_block_width; // 0..14
     const int gidX = gid - gidY * img_block_width; // 0..50 (0..767 / 51 => invalid gidX,gidY = (15,0),(15,1),(15,2)
 
     const int lidX = lx - lp * 24; // 0..23
@@ -134,11 +142,11 @@ __kernel void compute_hists_lut_kernel(
     for (int bin_id = 0; bin_id < cnbins; ++bin_id)
         hist[bin_id * 48] = 0.f;
 
-    const int dist_x = -4 + cell_thread_x - 4 * cell_x;
-    const int dist_center_x = dist_x - 4 * (1 - 2 * cell_x);
+    const int dist_x = -4 + cell_thread_x - 4 * cell_x;      // cellx = 0, distx = -4 ~ 8, cellx = 1, distx = -8 ~ 4
+    const int dist_center_x = dist_x - 4 * (1 - 2 * cell_x); // dist_center_x = -8 ~ 4 or -4 ~ 8
 
     const int dist_y_begin = -4 - 4 * lidY;
-    for (int dist_y = dist_y_begin; dist_y < dist_y_begin + 12; ++dist_y)
+    for (int dist_y = dist_y_begin; dist_y < dist_y_begin + 12; ++dist_y)  // -4 ~ 8 or -8 ~ 4
     {
         float2 vote = (float2) (grad_ptr[0], grad_ptr[1]);
         QANGLE_TYPE2 bin = (QANGLE_TYPE2) (qangle_ptr[0], qangle_ptr[1]);
@@ -146,11 +154,11 @@ __kernel void compute_hists_lut_kernel(
         grad_ptr += grad_quadstep;
         qangle_ptr += qangle_step;
 
-        int dist_center_y = dist_y - 4 * (1 - 2 * cell_y);
+        int dist_center_y = dist_y - 4 * (1 - 2 * cell_y);  // dist_center_y = -8 ~ 4 or -4 ~ 8 => 0 ~ 12 or 4 ~ 16
 
-        int idx = (dist_center_y + 8) * 16 + (dist_center_x + 8);
+        int idx = (dist_center_y + 8) * 16 + (dist_center_x + 8);  // +8 then 0 ~ 12 or 4 ~ 16
         float gaussian = gauss_w_lut[idx];
-        idx = (dist_y + 8) * 16 + (dist_x + 8);
+        idx = (dist_y + 8) * 16 + (dist_x + 8);  // +8 then 4 ~ 16 or 0 ~ 12
         float interp_weight = gauss_w_lut[256+idx];
 
         hist[bin.x * 48] += gaussian * interp_weight * vote.x;
@@ -178,11 +186,11 @@ __kernel void compute_hists_lut_kernel(
 #endif
 
     int tid = (cell_y * CELLS_PER_BLOCK_Y + cell_x) * 12 + cell_thread_x; // (0..3)*12 + (0.11) => 0 .. 47
-    if ((tid < cblock_hist_size) && (gid < blocks_total)) // only use 0..35 of tid (0..47) and gid = 192x4 
+    if ((tid < cblock_hist_size) && (gid < blocks_total)) // only use 0..35 of tid (0..47) and only use 0 .. 764 of gid = 192x4=768
     {
         __global float* block_hist = block_hists +
             (gidY * img_block_width + gidX) * cblock_hist_size;
-        block_hist[tid] = final_hist[tid];
+        block_hist[tid] = final_hist[tid];  // the size of final_hist = 36, there are 765 final_hists
     }
 }
 
@@ -192,7 +200,7 @@ __kernel void compute_hists_lut_kernel(
     int img_block_width = (width - CELLS_PER_BLOCK_X * CELL_WIDTH + block_stride_x)
         / block_stride_x; // 51
     int img_block_height = (height - CELLS_PER_BLOCK_Y * CELL_HEIGHT + block_stride_y)
-        / block_stride_y; // 15 
+        / block_stride_y; // 15
     int nthreads;
     size_t globalThreads[3] = { 1, 1, 1  };
     size_t localThreads[3] = { 1, 1, 1  };
@@ -200,7 +208,7 @@ __kernel void compute_hists_lut_kernel(
         /* optimized for the case of 9 bins */
         kernelName = "normalize_hists_36_kernel";
         int blocks_in_group = NTHREADS / block_hist_size; // 256/36 = 7
-        nthreads = blocks_in_group * block_hist_size; // 7*36 = 252 
+        nthreads = blocks_in_group * block_hist_size; // 7*36 = 252
         int num_groups = divUp( img_block_width * img_block_height, blocks_in_group); // 51*15/7 = 110
         globalThreads[0] = nthreads * num_groups; 252*110 ~= 51*15*36
         localThreads[0] = nthreads;
@@ -220,7 +228,7 @@ __kernel void compute_hists_lut_kernel(
     int img_block_width = (width - CELLS_PER_BLOCK_X * CELL_WIDTH + block_stride_x) /
         block_stride_x;
 
-    size_t globalThreads[3] = { (size_t)img_win_width * nthreads, (size_t)img_win_height, 1 }; // 45*256, 1 
+    size_t globalThreads[3] = { (size_t)img_win_width * nthreads, (size_t)img_win_height, 1 }; // 45*256, 1
     size_t localThreads[3] = { (size_t)nthreads, 1, 1 };
     args.push_back( make_pair( sizeof(cl_int), (void *)&cblock_hist_size));
     args.push_back( make_pair( sizeof(cl_int), (void *)&img_win_width));
@@ -234,28 +242,29 @@ __kernel void compute_hists_lut_kernel(
     args.push_back( make_pair( sizeof(cl_mem), (void *)&labels.data));
 
 
-F. what performance optimzation 
-   1) MERGE_GAUSSIAN_LUT: merge gaussian as one table for 2x2x12x12 = 576 but not 2x16x16 = 512 
+F. what performance optimzation
+   0) use gray picture but not RGB picture to reduce computation
+   1) MERGE_GAUSSIAN_LUT: merge gaussian as one table for 2x2x12x12 = 576 but not 2x16x16 = 512
       we can avoid one more multiple and to calculate dist_x, dist_y, dist_center_x, dist_center_y
-   2) HISTOGRAM_SIMPLIFY_ALU: 
+   2) HISTOGRAM_SIMPLIFY_ALU:
       use opencl vector type to speed up, for example float8 a, c; a.s01 = b * c.s01
    3) use private memory > local memory > private memory (100:10:1)
-      we always think the difference between global/local but we shall think the difference between local/private 
-      but avoid register spilling 
+      we always think the difference between global/local but we shall think the difference between local/private
+      but avoid register spilling
    4) use texture/buffer to replace local memory transfer between kernels ?
-      or avoid boundary data getting ? 
+      or avoid boundary data getting ?
       const sampler_t _samplerImg = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;
-      CLK_ADDRESS_CLAMP: clamp to border color (i.e. 0,0,0 or 0,0,0,1) or CLK_ADDRESS_CLAMP_TO_EDGE 
-   5) use one concat kernel by many kernel to reduce global memory access 
-   6) use proper type or use large type to packed multiple data 
+      CLK_ADDRESS_CLAMP: clamp to border color (i.e. 0,0,0 or 0,0,0,1) or CLK_ADDRESS_CLAMP_TO_EDGE
+   5) use one concat kernel by many kernel to reduce global memory access
+   6) use proper type or use large type to packed multiple data
       ushort4 bin_tmp  = convert_ushort4(read_imageui(qangle, _samplerImg, (int2)((x>>1), y)));
       uchar8  bin_vec  = as_uchar8(bin_tmp);
-      use the new layout sum? if no coeff multiple. 12x12 cells to become 3x3 (16x16) cells. 
+      use the new layout sum? if no coeff multiple. 12x12 cells to become 3x3 (16x16) cells.
    7) DETECT_ALL_LAYERS
       -use clFinish() ? reorder the flow ex: getPyramid ? and seperate all CPU and GPU tasks ?
-   8) use some memory to reduce if checking for boundary, for norm_hists NTHREADS = 256 but not 252 
-   9) think it's better to let local group number to be the number of processing units   
-      but what you shall put it ? use 12 cell x or increase the group of blocks ? (4 to 64?) 
+   8) use some memory to reduce if checking for boundary, for norm_hists NTHREADS = 256 but not 252
+   9) think it's better to let local group number to be the number of processing units
+      but what you shall put it ? use 12 cell x or increase the group of blocks ? (4 to 64?)
   10) use more hardcode , ex: 54 or 6*cnbins , and change the resolution to let more parrellism
-  11) 
-  11) 
+  11)
+  11)

@@ -1,4 +1,4 @@
-[openVX kernels] 
+[openVX kernels]
     // x inputs => y outputs, region/border
     &invalid_kernel,
     &colorconvert_kernel,              (1(A)=>1(C) by C = colorconvert(A))(in region)
@@ -13,7 +13,7 @@
     &equalize_hist_kernel,             (1(A)=>1(C) by C = eqhis(A))(in region)
                                        https://zh.wikipedia.org/wiki/%E7%9B%B4%E6%96%B9%E5%9B%BE%E5%9D%87%E8%A1%A1%E5%8C%96
     &absdiff_kernel,		       (2(A,B)=>1(C) by C = abs(A-B))(in region)
-    &mean_stddev_kernel,               (1(A) => mean and stddev)(in region)(sum of pixel/#pixel and sum of (pixel-mean)^2/#pixel) 
+    &mean_stddev_kernel,               (1(A) => mean and stddev)(in region)(sum of pixel/#pixel and sum of (pixel-mean)^2/#pixel)
     &threshold_kernel,                 (1(A) => 1(C) by threhold(C))(binary(1: pixel > threshold) or range (0: pixel > upper or pixel < lower))
     &integral_image_kernel,            (1(A)=>1(C) by C = sum of left top image(A))(in region)
     &erode3x3_kernel,                  (1(A)=>1(C) by C = min(A))(in region) http://monkeycoding.com/?p=577
@@ -30,27 +30,28 @@
     &convertdepth_kernel,              (1(A)=>1(C) by C = depthconvert(A))(in region) (depth covert)
     &and_kernel,                       (2(A,B)=>1(C) by C = A & B))(in region)
     &or_kernel,                        (2(A,B)=>1(C) by C = A | B))(in region)
-    &xor_kernel,                       (2(A,B)=>1(C) by C = A ^ B))(in region) 
+    &xor_kernel,                       (2(A,B)=>1(C) by C = A ^ B))(in region)
     &not_kernel,                       (1(A)=>1(C) by C = !A))(in region)
     &multiply_kernel,                  (2(A, B)=>1(C) by C = A*B or C = A*B*scale)(in region)( with or without scaling )
     &add_kernel,		       (2(A,B)=>1(C) by C = A + B))(in region)
     &subtract_kernel,                  (2(A,B)=>1(C) by C = A - B))(in region)
     &warp_affine_kernel,               (1(A)=> 1(C) by warp(C)) (affline warp = C = M*A+T)(region check)(affline not impact distance)
-    &warp_perspective_kernel,          (1(A)=> 1(C) by warp(C)) (affline warp = C = (M*A+T)/Z)(region check)    
+    &warp_perspective_kernel,          (1(A)=> 1(C) by warp(C)) (affline warp = C = (M*A+T)/Z)(region check)
     &fast9_kernel,                     (1(A)=> #fast corner and where)(border)(check circle 16 points and use suppression to avoid too many corners ?)
                                        refer https://www.edwardrosten.com/work/fast.html
     &remap_kernel,                     (1(A)=> 1(C) by C = remap(A))(in region) (remap: C[x][y] = A[x'][y'] if (x',y') = remap(x, y) i.e find the source point for destination point)
-    &halfscale_gaussian_kernel,        (1(A)=> 1(C) by C = gaussian5x5(A))(border) ( gaussian5x5 = 1,4,6,4,1 4,16,24,16,4 6,24,36,24,6 4,16,24,16,4 1,4,6,4,1 )(i.e C(4,x))      
+    &halfscale_gaussian_kernel,        (1(A)=> 1(C) by C = gaussian5x5(A))(border) ( gaussian5x5 = 1,4,6,4,1 4,16,24,16,4 6,24,36,24,6 4,16,24,16,4 1,4,6,4,1 )(i.e C(4,x))
     &edge_trace_kernel,                (1(A)=> 1(C) by C = edge_threhold(A))(border) (if >upper,yes. if <lower,no. if middle,maybe. spread all yes points to mark all reachable "maybe" points
-    &euclidian_nonmax_harris_kernel,   (1(A)=> 1(C) by find local max strength by 3x3 neighbor and sort them. traverse them if no stronger point in the cycle of radius, C = strength else 0 
+    &euclidian_nonmax_harris_kernel,   (1(A)=> 1(C) by find local max strength by 3x3 neighbor and sort them. traverse them if no stronger point in the cycle of radius, C = strength else 0
     &harris_score_kernel,              (1(A)=>1(C) by C = Mc(A))(border) (Mc please refer harris matrix in below link)
                                        https://zh.wikipedia.org/wiki/%E8%A7%92%E6%A3%80%E6%B5%8B
+                                       https://www.google.com/search?q=harris+corner+detection&oq=harris+corner+detection&gs_lcrp=EgZjaHJvbWUqDggAEEUYJxg7GIAEGIoFMg4IABBFGCcYOxiABBiKBTIHCAEQABiABDIHCAIQABiABDIHCAMQABiABDIHCAQQABiABDIHCAUQABiABDIHCAYQABiABDIHCAcQABiABDIHCAgQABiABDIHCAkQABiABKgCALACAA&sourceid=chrome&ie=UTF-8
     &laplacian3x3_kernel,              (1(A)=>1(C) by C = laplacian(A))(border) (laplacian filter = 1,1,1 1,-8,1 1,1,1)
                                        https://homepages.inf.ed.ac.uk/rbf/HIPR2/log.htm
     &lister_kernel,                    (1(A)=>array by corner record if strength > 0)(in region)
-    &nonmax_kernel,                    (2(mag,angle)=>1(edge) by edge = mag if mag of angle_left < pixel > mag of angle_right, by 012 345 678 else 0 (mag = box3x3[4]) 
+    &nonmax_kernel,                    (2(mag,angle)=>1(edge) by edge = mag if mag of angle_left < pixel > mag of angle_right, by 012 345 678 else 0 (mag = box3x3[4])
     &norm_kernel,                      (2(A,B)=>1(C) by C = normalize(A + B))(in region)(norm1 = abs(A)+abs(B), norm2 = sqrt(A*A+B*B) like magnitude_kernel)
-    &scharr3x3_kernel,                 (1(A) => 2(CX, CY) by CX = sobel_x(A) and CY = sobel_y(A))(border)(sobel_x = -3 0 3,-10 0 10,-3 0 3 and sobel_y = -3 -10 -3,0 0 0,3 10 3, graident filter) 
+    &scharr3x3_kernel,                 (1(A) => 2(CX, CY) by CX = sobel_x(A) and CY = sobel_y(A))(border)(sobel_x = -3 0 3,-10 0 10,-3 0 3 and sobel_y = -3 -10 -3,0 0 0,3 10 3, graident filter)
     &sobelMxN_kernel,                  (1(A) => 2(CX, CY) by CX = sobel_x(A) and CY = sobel_y(A))(border)(sobel filter will has 5x5, 7x7 not only 3x3, graident filter)
     &harris_kernel,                    (1(A) => 2(gx, gy) => 1(harris score) => 1(euclidean surpression) => # corner lists  to get all corners)(border)
                                        [virt] 0: Gx, 1: Gy, 2: Score, 3: Suppressed, 4: Shifted Suppressed Log10 ???
@@ -66,7 +67,7 @@
                                        vxNonMaxSuppressionNode(graph, virts[2], virts[3], virts[4]),
                                        vxEdgeTraceNode(graph, virts[4], hyst, output),
     &optpyrlk_kernel,                  use pyramid to get the motion from old image pyramid to new one by prev tracking points to the next tracking points (maybe from corner ..)
-                                       a kind of feature matching to 
+                                       a kind of feature matching to
                                        https://en.wikipedia.org/wiki/Kanade%E2%80%93Lucas%E2%80%93Tomasi_feature_tracker
                                        http://robots.stanford.edu/cs223b04/algo_affine_tracking.pdf
 
